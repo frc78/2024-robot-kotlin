@@ -56,6 +56,6 @@ class OrbitalTarget(
                 robotPose.rotation.plus(allianceOffset)
             )
 
-        Chassis.driveRobotRelative(speeds, goalPosition)
+        Chassis.drive(speeds, goalPosition)
     }
 }

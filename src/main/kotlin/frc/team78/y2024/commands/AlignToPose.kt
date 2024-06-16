@@ -72,7 +72,7 @@ class AlignToPose(
         val thetaOutput =
             thetaController.calculate(currentPose.rotation.radians, goalPose.rotation.radians)
 
-        Chassis.driveRobotRelative(
+        Chassis.drive(
             ChassisSpeeds.fromFieldRelativeSpeeds(
                 xOutput,
                 yOutput,
@@ -84,9 +84,5 @@ class AlignToPose(
 
     override fun isFinished(): Boolean {
         return xController.atGoal() && yController.atGoal() && thetaController.atGoal()
-    }
-
-    override fun end(interrupted: Boolean) {
-        Chassis.driveRobotRelative(ChassisSpeeds())
     }
 }

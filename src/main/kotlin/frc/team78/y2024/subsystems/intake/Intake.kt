@@ -17,13 +17,13 @@ object Intake : SubsystemBase() {
             setStatusRates(20, 20)
         }
 
-    private val followerMotor =
+    init {
         CANSparkMax(FOLLOWER_CAN_ID, kBrushless).apply {
             restoreFactoryDefaults()
             follow(leaderMotor)
             setStatusRates(500, 20)
         }
+    }
 
-    val intake
-        get() = startEnd({ leaderMotor.set(INTAKE_SPEED) }, { leaderMotor.set(0.0) })
+    fun intake() = startEnd({ leaderMotor.set(INTAKE_SPEED) }, { leaderMotor.set(0.0) })
 }

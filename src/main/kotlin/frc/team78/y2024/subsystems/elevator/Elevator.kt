@@ -29,6 +29,8 @@ object Elevator : SubsystemBase("Elevator") {
         SmartDashboard.putData(this)
         SmartDashboard.putData(coast())
         SmartDashboard.putData(brake())
+
+        defaultCommand = moveToTarget(0.0)
     }
 
     // Constants for the feedforward calculation
@@ -57,33 +59,33 @@ object Elevator : SubsystemBase("Elevator") {
     private const val GEAR_RATIO = 5.0 * 5.0
 
     /** Diameter is 1.29 inches */
-    private val drumRadius = Inches.of(1.29 / 2.0)
+    private val DRUM_RADIUS = Inches.of(1.29 / 2.0)
 
-    private val kPositionConversionFactor = drumRadius.magnitude() * 2 * Math.PI / GEAR_RATIO
+    private val POSITION_CONVERSION_FACTOR = DRUM_RADIUS.magnitude() * 2 * Math.PI / GEAR_RATIO
 
     private const val LEADER_MOTOR_INVERTED = false
     private const val FOLLOWER_MOTOR_INVERTED = true
 
     // Taken from CAD
-    private val kCarriageMass = Units.Pounds.of(18.427)
+    private val CARRIAGE_MASS = Units.Pounds.of(18.427)
 
-    private val kMinHeight = Inches.of(0.0)
-    private val kMaxHeight = Inches.of(16.9)
+    private val MIN_HEIGHT = Inches.of(0.0)
+    private val MAX_HEIGHT = Inches.of(16.9)
 
     // Start above 0 so that the mechanism zeroes itself
-    private val kSimStartingHeight = Inches.of(5.0)
+    private val SIM_STARTING_HEIGHT = Inches.of(5.0)
 
     private val elevatorGearbox = DCMotor.getNEO(2)
     private val elevatorSim =
         ElevatorSim(
             elevatorGearbox,
             GEAR_RATIO,
-            kCarriageMass.`in`(Units.Kilograms),
-            drumRadius.`in`(Units.Meters),
-            kMinHeight.`in`(Units.Meters),
-            kMaxHeight.`in`(Units.Meters),
+            CARRIAGE_MASS.`in`(Units.Kilograms),
+            DRUM_RADIUS.`in`(Units.Meters),
+            MIN_HEIGHT.`in`(Units.Meters),
+            MAX_HEIGHT.`in`(Units.Meters),
             true,
-            kSimStartingHeight.`in`(Units.Meters),
+            SIM_STARTING_HEIGHT.`in`(Units.Meters),
         )
 
     private val mech2d = Mechanism2d(20.0, 50.0)
@@ -115,14 +117,10 @@ object Elevator : SubsystemBase("Elevator") {
             setStatusRates(500)
         }
     private val encoder =
-        leaderMotor.encoder.apply { positionConversionFactor = kPositionConversionFactor }
+        leaderMotor.encoder.apply { positionConversionFactor = POSITION_CONVERSION_FACTOR }
 
     var zeroed = false
         private set
-
-    init {
-        defaultCommand = setToTarget(0.0)
-    }
 
     val position
         get() = encoder.position
@@ -157,12 +155,12 @@ object Elevator : SubsystemBase("Elevator") {
                         enableSoftLimit(CANSparkBase.SoftLimitDirection.kForward, true)
                         setSoftLimit(
                             CANSparkBase.SoftLimitDirection.kForward,
-                            kMaxHeight.magnitude().toFloat(),
+                            MAX_HEIGHT.magnitude().toFloat(),
                         )
                         enableSoftLimit(CANSparkBase.SoftLimitDirection.kReverse, true)
                         setSoftLimit(
                             CANSparkBase.SoftLimitDirection.kReverse,
-                            kMinHeight.magnitude().toFloat(),
+                            MIN_HEIGHT.magnitude().toFloat(),
                         )
                     }
                     zeroed = true
@@ -173,11 +171,11 @@ object Elevator : SubsystemBase("Elevator") {
             .withInterruptBehavior(Command.InterruptionBehavior.kCancelIncoming)
             .withName("Zero Elevator")
 
-    fun ampPosition() = setToTarget(AMP_HEIGHT)
+    fun goToAmp() = moveToTarget(AMP_HEIGHT)
 
-    fun climb() = setToTarget(CLIMB_HEIGHT)
+    fun goToClimb() = moveToTarget(CLIMB_HEIGHT)
 
-    private fun setToTarget(target: Double) =
+    private fun moveToTarget(target: Double) =
         FunctionalCommand(
                 { pidController.setGoal(target) },
                 {
@@ -218,7 +216,7 @@ object Elevator : SubsystemBase("Elevator") {
             ),
         )
 
-    fun sysId() =
+    fun runSysId() =
         Commands.sequence(
             sysIdRoutine.dynamic(SysIdRoutine.Direction.kForward).until {
                 leaderMotor.getFault(CANSparkBase.FaultID.kSoftLimitFwd)

@@ -28,7 +28,7 @@ class FieldOrientedWithCardinal(
     /** Set to 180 when on Red */
     private var allianceOffset = Rotation2d.fromDegrees(0.0)
 
-    val thetaPID =
+    private val thetaPID =
         ProfiledPIDController(
                 cardinalPidConstants.kP,
                 cardinalPidConstants.kI,
@@ -67,7 +67,7 @@ class FieldOrientedWithCardinal(
         val cardinalRotSpeed: Double = thetaPID.calculate(PoseEstimator.pose.rotation.radians)
         speeds.omegaRadiansPerSecond = cardinalRotSpeed
 
-        Chassis.driveRobotRelative(
+        Chassis.drive(
             ChassisSpeeds.fromFieldRelativeSpeeds(
                 speeds,
                 PoseEstimator.pose.rotation.plus(allianceOffset)
@@ -80,6 +80,6 @@ class FieldOrientedWithCardinal(
     }
 
     override fun end(interrupted: Boolean) {
-        Chassis.driveRobotRelative(ChassisSpeeds())
+        Chassis.drive(ChassisSpeeds())
     }
 }
