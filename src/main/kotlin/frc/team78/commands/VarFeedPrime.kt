@@ -1,17 +1,17 @@
 // Copyright (c) FIRST and other WPILib contributors.
 // Open Source Software; you can modify and/or share it under the terms of
 // the WPILib BSD license file in the root directory of this project.
-package frc.team78.y2024.commands
+package frc.team78.commands
 
 import edu.wpi.first.math.geometry.Translation2d
 import edu.wpi.first.math.util.Units.inchesToMeters
-import edu.wpi.first.units.Units.*
+import edu.wpi.first.units.Units.RotationsPerSecond
 import edu.wpi.first.wpilibj2.command.Command
-import frc.team78.y2024.lib.PLOP_POSE
-import frc.team78.y2024.subsystems.chassis.PoseEstimator
-import frc.team78.y2024.subsystems.elevator.Elevator
-import frc.team78.y2024.subsystems.shooter.Shooter
-import frc.team78.y2024.subsystems.wrist.Wrist
+import frc.team78.lib.PLOP_POSE
+import frc.team78.subsystems.chassis.PoseEstimator
+import frc.team78.subsystems.elevator.Elevator
+import frc.team78.subsystems.shooter.Shooter
+import frc.team78.subsystems.wrist.Wrist
 import kotlin.math.PI
 import kotlin.math.cos
 import kotlin.math.sin

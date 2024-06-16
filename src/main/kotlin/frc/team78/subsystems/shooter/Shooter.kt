@@ -1,4 +1,4 @@
-package frc.team78.y2024.subsystems.shooter
+package frc.team78.subsystems.shooter
 
 import com.ctre.phoenix6.BaseStatusSignal
 import com.ctre.phoenix6.configs.Slot0Configs
@@ -21,7 +21,8 @@ object Shooter : SubsystemBase() {
     private const val TOP_CAN_ID = 14
     private const val BOTTOM_CAN_ID = 15
 
-    private const val SLOW_SHOT_RPM = 500.0 / 60
+    private val SHOT_RPM = Units.RPM.of(4000.0)
+    private val SLOW_SHOT_RPM = Units.RPM.of(500.0)
 
     private val velocityControl = VelocityVoltage(0.0, 0.0, true, 0.0, 0, true, false, false)
 
@@ -70,25 +71,9 @@ object Shooter : SubsystemBase() {
         }
     private val bottomVelocity = bottomMotor.velocity
 
-    private val sysIdVoltage = VoltageOut(0.0, true, true, false, false)
-    private val sysIdRoutine =
-        SysIdRoutine(
-            SysIdRoutine.Config(),
-            SysIdRoutine.Mechanism(
-                { voltage ->
-                    sysIdVoltage.Output = voltage.`in`(Volts)
-                    topMotor.setControl(sysIdVoltage)
-                    bottomMotor.setControl(sysIdVoltage)
-                },
-                null,
-                this,
-                "shooter"
-            )
-        )
-
     fun setSpeed(speed: Measure<Velocity<Angle>>) {
         if (slowShot.get()) {
-            velocityControl.Velocity = SLOW_SHOT_RPM
+            velocityControl.Velocity = SLOW_SHOT_RPM.`in`(Units.RotationsPerSecond)
         } else {
             velocityControl.Velocity = speed.`in`(Units.RotationsPerSecond)
         }
@@ -96,12 +81,9 @@ object Shooter : SubsystemBase() {
         bottomMotor.setControl(velocityControl)
     }
 
-    fun setSpeedCommand(speed: Measure<Velocity<Angle>>) =
-        runOnce { setSpeed(speed) }
-            .withName(
-                "Set Shooter Speed - ${
-            speed.`in`(Units.RotationsPerSecond)} rps"
-            )
+    fun spinUp() = runOnce { setSpeed(SHOT_RPM) }.withName("Spin Up")
+
+    fun stop() = runOnce { setSpeed(Units.RotationsPerSecond.of(0.0)) }.withName("Stop")
 
     val isAtSpeed: Boolean
         get() {
@@ -119,7 +101,23 @@ object Shooter : SubsystemBase() {
         bottomVelocityPub.set(bottomVelocity.value)
     }
 
-    fun sysId() =
+    private val sysIdVoltage = VoltageOut(0.0, true, true, false, false)
+    private val sysIdRoutine =
+        SysIdRoutine(
+            SysIdRoutine.Config(),
+            SysIdRoutine.Mechanism(
+                { voltage ->
+                    sysIdVoltage.Output = voltage.`in`(Volts)
+                    topMotor.setControl(sysIdVoltage)
+                    bottomMotor.setControl(sysIdVoltage)
+                },
+                null,
+                this,
+                "shooter"
+            )
+        )
+
+    fun runSysId() =
         Commands.sequence(
                 runOnce {
                     topMotor.motorVoltage.setUpdateFrequency(50.0)

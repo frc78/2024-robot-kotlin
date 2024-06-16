@@ -1,7 +1,7 @@
 // Copyright (c) FIRST and other WPILib contributors.
 // Open Source Software; you can modify and/or share it under the terms of
 // the WPILib BSD license file in the root directory of this project.
-package frc.team78.y2024.commands
+package frc.team78.subsystems.chassis
 
 import com.pathplanner.lib.util.PIDConstants
 import edu.wpi.first.math.controller.ProfiledPIDController
@@ -14,8 +14,6 @@ import edu.wpi.first.units.Units.Degrees
 import edu.wpi.first.units.Units.Radian
 import edu.wpi.first.wpilibj.DriverStation
 import edu.wpi.first.wpilibj2.command.Command
-import frc.team78.y2024.subsystems.chassis.Chassis
-import frc.team78.y2024.subsystems.chassis.PoseEstimator
 
 class FieldOrientedWithCardinal(
     private val angle: () -> Double,
@@ -28,7 +26,7 @@ class FieldOrientedWithCardinal(
     /** Set to 180 when on Red */
     private var allianceOffset = Rotation2d.fromDegrees(0.0)
 
-    val thetaPID =
+    private val thetaPID =
         ProfiledPIDController(
                 cardinalPidConstants.kP,
                 cardinalPidConstants.kI,
@@ -67,7 +65,7 @@ class FieldOrientedWithCardinal(
         val cardinalRotSpeed: Double = thetaPID.calculate(PoseEstimator.pose.rotation.radians)
         speeds.omegaRadiansPerSecond = cardinalRotSpeed
 
-        Chassis.driveRobotRelative(
+        Chassis.drive(
             ChassisSpeeds.fromFieldRelativeSpeeds(
                 speeds,
                 PoseEstimator.pose.rotation.plus(allianceOffset)
@@ -80,6 +78,6 @@ class FieldOrientedWithCardinal(
     }
 
     override fun end(interrupted: Boolean) {
-        Chassis.driveRobotRelative(ChassisSpeeds())
+        Chassis.drive(ChassisSpeeds())
     }
 }

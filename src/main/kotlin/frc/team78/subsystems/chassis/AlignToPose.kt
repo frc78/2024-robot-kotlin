@@ -1,4 +1,4 @@
-package frc.team78.y2024.commands
+package frc.team78.subsystems.chassis
 
 import com.pathplanner.lib.util.PIDConstants
 import edu.wpi.first.math.controller.ProfiledPIDController
@@ -7,8 +7,6 @@ import edu.wpi.first.math.kinematics.ChassisSpeeds
 import edu.wpi.first.math.trajectory.TrapezoidProfile
 import edu.wpi.first.wpilibj2.command.Command
 import frc.team78.lib.MotionLimits
-import frc.team78.y2024.subsystems.chassis.Chassis
-import frc.team78.y2024.subsystems.chassis.PoseEstimator
 
 class AlignToPose(
     private val goalPoseSupplier: () -> Pose2d,
@@ -72,7 +70,7 @@ class AlignToPose(
         val thetaOutput =
             thetaController.calculate(currentPose.rotation.radians, goalPose.rotation.radians)
 
-        Chassis.driveRobotRelative(
+        Chassis.drive(
             ChassisSpeeds.fromFieldRelativeSpeeds(
                 xOutput,
                 yOutput,
@@ -84,9 +82,5 @@ class AlignToPose(
 
     override fun isFinished(): Boolean {
         return xController.atGoal() && yController.atGoal() && thetaController.atGoal()
-    }
-
-    override fun end(interrupted: Boolean) {
-        Chassis.driveRobotRelative(ChassisSpeeds())
     }
 }

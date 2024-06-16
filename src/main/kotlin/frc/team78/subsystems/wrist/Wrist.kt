@@ -1,4 +1,4 @@
-package frc.team78.y2024.subsystems.wrist
+package frc.team78.subsystems.wrist
 
 import com.revrobotics.CANSparkBase
 import com.revrobotics.CANSparkLowLevel
@@ -13,6 +13,13 @@ import edu.wpi.first.wpilibj2.command.sysid.SysIdRoutine
 import frc.team78.lib.setStatusRates
 
 object Wrist : SubsystemBase("Wrist") {
+
+    init {
+        SmartDashboard.putData(this)
+        SmartDashboard.putData(coast())
+        SmartDashboard.putData(brake())
+    }
+
     private const val MOTOR_CAN_ID = 13
     private const val K_P = 0.03
     private const val FORWARD_SOFT_LIMIT = 60f
@@ -49,7 +56,7 @@ object Wrist : SubsystemBase("Wrist") {
     fun setTarget(target: Double) =
         motor.pidController.setReference(target, CANSparkBase.ControlType.kPosition)
 
-    fun setTargetCommand(target: Double) =
+    private fun setTargetCommand(target: Double) =
         runOnce { setTarget(target) }.withName("setTarget($target)")
 
     val position
@@ -69,12 +76,6 @@ object Wrist : SubsystemBase("Wrist") {
             .ignoringDisable(true)
             .withName("Brake Wrist")
 
-    init {
-        SmartDashboard.putData(this)
-        SmartDashboard.putData(coast())
-        SmartDashboard.putData(brake())
-    }
-
     override fun periodic() {
         positionNtPub.set(encoder.position)
     }
@@ -90,7 +91,7 @@ object Wrist : SubsystemBase("Wrist") {
             ),
         )
 
-    fun sysId() =
+    fun runSysId() =
         Commands.sequence(
             sysIdRoutine.dynamic(SysIdRoutine.Direction.kForward).until { hardLimitFwd.isPressed },
             sysIdRoutine.dynamic(SysIdRoutine.Direction.kReverse).until {

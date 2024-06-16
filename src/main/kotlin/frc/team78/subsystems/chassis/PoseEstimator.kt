@@ -1,4 +1,4 @@
-package frc.team78.y2024.subsystems.chassis
+package frc.team78.subsystems.chassis
 
 import com.ctre.phoenix6.hardware.Pigeon2
 import edu.wpi.first.apriltag.AprilTagFieldLayout
@@ -32,10 +32,10 @@ object PoseEstimator {
         }
     private val imu = Pigeon2(0)
 
-    private val odometryStandardDeviations = VecBuilder.fill(0.1, 0.1, 0.1)
-    private val visionStandardDeviations = VecBuilder.fill(1.0, 1.0, 1.5)
-    private val singleTagStandardDeviations = VecBuilder.fill(4.0, 4.0, 8.0)
-    private val multiTagStandardDeviations = VecBuilder.fill(0.5, 0.5, 1.0)
+    private val ODOMETRY_STD_DEVS = VecBuilder.fill(0.1, 0.1, 0.1)
+    private val VISION_STD_DEVS = VecBuilder.fill(1.0, 1.0, 1.5)
+    private val SINGLE_TAG_STD_DEVS = VecBuilder.fill(4.0, 4.0, 8.0)
+    private val MULTI_TAG_STD_DEVS = VecBuilder.fill(0.5, 0.5, 1.0)
 
     private val STERN_CAM = PhotonCamera("SternCam")
     private val STERN_CAM_POSE =
@@ -112,7 +112,6 @@ object PoseEstimator {
             starboardCamPoseEstimator,
         )
 
-    private val cams = arrayOf("Stern", "Port", "Starboard")
     private val ntTable = NetworkTableInstance.getDefault().getTable("pose_estimator")
     private val ntPublishers =
         arrayOf(
@@ -130,8 +129,8 @@ object PoseEstimator {
             imu.rotation2d,
             Chassis.positions,
             Pose2d(),
-            odometryStandardDeviations,
-            visionStandardDeviations,
+            ODOMETRY_STD_DEVS,
+            VISION_STD_DEVS,
         )
 
     fun update() {
@@ -158,9 +157,8 @@ object PoseEstimator {
     val pose
         get() = swerveDrivePoseEstimator.estimatedPosition
 
-    fun resetPose(pose: Pose2d) {
+    fun resetPose(pose: Pose2d) =
         swerveDrivePoseEstimator.resetPosition(imu.rotation2d, Chassis.positions, pose)
-    }
 
     private fun getEstimatedStandardDeviations(
         pose: Pose2d,
@@ -178,8 +176,8 @@ object PoseEstimator {
 
         val standardDeviations =
             when (numTargets) {
-                1 -> singleTagStandardDeviations
-                else -> multiTagStandardDeviations
+                1 -> SINGLE_TAG_STD_DEVS
+                else -> MULTI_TAG_STD_DEVS
             }
         return standardDeviations * (1 + (averageDistanceToTargets * averageDistanceToTargets / 30))
     }

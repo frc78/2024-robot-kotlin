@@ -1,7 +1,7 @@
 // Copyright (c) FIRST and other WPILib contributors.
 // Open Source Software; you can modify and/or share it under the terms of
 // the WPILib BSD license file in the root directory of this project.
-package frc.team78.y2024.commands
+package frc.team78.subsystems.chassis
 
 import edu.wpi.first.math.geometry.Rotation2d
 import edu.wpi.first.math.geometry.Translation2d
@@ -11,9 +11,7 @@ import edu.wpi.first.wpilibj.DriverStation
 import edu.wpi.first.wpilibj.DriverStation.Alliance
 import edu.wpi.first.wpilibj2.command.Command
 import frc.team78.lib.MotionLimits
-import frc.team78.y2024.lib.SPEAKER_POSE
-import frc.team78.y2024.subsystems.chassis.Chassis
-import frc.team78.y2024.subsystems.chassis.PoseEstimator
+import frc.team78.lib.SPEAKER_POSE
 
 class OrbitalTarget(
     private val speedsSupplier: () -> ChassisSpeeds,
@@ -56,6 +54,6 @@ class OrbitalTarget(
                 robotPose.rotation.plus(allianceOffset)
             )
 
-        Chassis.driveRobotRelative(speeds, goalPosition)
+        Chassis.drive(speeds, goalPosition)
     }
 }

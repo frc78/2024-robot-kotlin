@@ -1,4 +1,4 @@
-package frc.team78.y2024.subsystems.chassis
+package frc.team78.subsystems.chassis
 
 import com.pathplanner.lib.commands.PathfindingCommand
 import com.revrobotics.CANSparkBase
@@ -21,16 +21,10 @@ data class OpenLoopParameters(val kS: Double, val kV: Double, val kA: Double)
 
 data class ClosedLoopParameters(val kP: Double, val kI: Double, val kD: Double)
 
-data class SwerveModuleConfig(
-    val driveCanId: Int,
-    val steerCanId: Int,
-    val driveOpenLoopParameters: OpenLoopParameters,
-)
-
-class SwerveModule(config: SwerveModuleConfig) {
+class SwerveModule(driveCanId: Int, steerCanId: Int, driveOpenLoopParameters: OpenLoopParameters) {
 
     private val driveMotor =
-        CANSparkMax(config.driveCanId, CANSparkLowLevel.MotorType.kBrushless).apply {
+        CANSparkMax(driveCanId, CANSparkLowLevel.MotorType.kBrushless).apply {
             restoreFactoryDefaults()
             idleMode = CANSparkBase.IdleMode.kBrake
             setSmartCurrentLimit(DRIVE_CURRENT_LIMIT)
@@ -40,7 +34,7 @@ class SwerveModule(config: SwerveModuleConfig) {
         }
 
     private val steerMotor =
-        CANSparkMax(config.steerCanId, CANSparkLowLevel.MotorType.kBrushless).apply {
+        CANSparkMax(steerCanId, CANSparkLowLevel.MotorType.kBrushless).apply {
             restoreFactoryDefaults()
             idleMode = CANSparkBase.IdleMode.kBrake
             setSmartCurrentLimit(STEER_CURRENT_LIMIT)
@@ -82,9 +76,9 @@ class SwerveModule(config: SwerveModuleConfig) {
 
     private val driveFeedforward =
         SimpleMotorFeedforward(
-            config.driveOpenLoopParameters.kS,
-            config.driveOpenLoopParameters.kV,
-            config.driveOpenLoopParameters.kA
+            driveOpenLoopParameters.kS,
+            driveOpenLoopParameters.kV,
+            driveOpenLoopParameters.kA
         )
 
     fun enableBrakeMode() {
@@ -97,10 +91,10 @@ class SwerveModule(config: SwerveModuleConfig) {
         steerMotor.idleMode = CANSparkBase.IdleMode.kCoast
     }
 
-    val driveVelocity
+    private val driveVelocity
         get() = driveEncoder.velocity
 
-    val drivePosition
+    private val drivePosition
         get() = driveEncoder.position
 
     val steerPosition

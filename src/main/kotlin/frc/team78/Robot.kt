@@ -1,7 +1,7 @@
 // Copyright (c) FIRST and other WPILib contributors.
 // Open Source Software; you can modify and/or share it under the terms of
 // the WPILib BSD license file in the root directory of this project.
-package frc.team78.y2024
+package frc.team78
 
 import com.ctre.phoenix6.SignalLogger
 import com.pathplanner.lib.auto.AutoBuilder
@@ -14,8 +14,6 @@ import edu.wpi.first.math.kinematics.ChassisSpeeds
 import edu.wpi.first.math.trajectory.TrapezoidProfile
 import edu.wpi.first.net.PortForwarder
 import edu.wpi.first.units.Units.Degrees
-import edu.wpi.first.units.Units.RPM
-import edu.wpi.first.units.Units.RotationsPerSecond
 import edu.wpi.first.wpilibj.DataLogManager
 import edu.wpi.first.wpilibj.DriverStation
 import edu.wpi.first.wpilibj.GenericHID.RumbleType
@@ -29,28 +27,28 @@ import edu.wpi.first.wpilibj2.command.Commands
 import edu.wpi.first.wpilibj2.command.button.CommandXboxController
 import edu.wpi.first.wpilibj2.command.button.RobotModeTriggers
 import edu.wpi.first.wpilibj2.command.button.Trigger
-import frc.team78.lib.BaseSwerveDrive
+import frc.team78.commands.VarFeedPrime
+import frc.team78.commands.VarShootPrime
 import frc.team78.lib.MotionLimits
+import frc.team78.lib.SPEAKER_POSE
 import frc.team78.lib.metersPerSecond
 import frc.team78.lib.metersPerSecondPerSecond
 import frc.team78.lib.radiansPerSecond
 import frc.team78.lib.radiansPerSecondPerSecond
-import frc.team78.y2024.commands.FieldOrientedWithCardinal
-import frc.team78.y2024.commands.VarFeedPrime
-import frc.team78.y2024.commands.VarShootPrime
-import frc.team78.y2024.lib.SPEAKER_POSE
-import frc.team78.y2024.subsystems.chassis.Chassis
-import frc.team78.y2024.subsystems.chassis.PoseEstimator
-import frc.team78.y2024.subsystems.elevator.Elevator
-import frc.team78.y2024.subsystems.feedback.LED
-import frc.team78.y2024.subsystems.feeder.Feeder
-import frc.team78.y2024.subsystems.intake.Intake
-import frc.team78.y2024.subsystems.shooter.Shooter
-import frc.team78.y2024.subsystems.wrist.Wrist
-import org.littletonrobotics.urcl.URCL
+import frc.team78.subsystems.chassis.BaseSwerveDrive
+import frc.team78.subsystems.chassis.Chassis
+import frc.team78.subsystems.chassis.FieldOrientedWithCardinal
+import frc.team78.subsystems.chassis.PoseEstimator
+import frc.team78.subsystems.elevator.Elevator
+import frc.team78.subsystems.feedback.LED
+import frc.team78.subsystems.feeder.Feeder
+import frc.team78.subsystems.intake.Intake
+import frc.team78.subsystems.shooter.Shooter
+import frc.team78.subsystems.wrist.Wrist
 import java.util.*
 import kotlin.jvm.optionals.getOrNull
 import kotlin.math.PI
+import org.littletonrobotics.urcl.URCL
 
 object Robot : TimedRobot() {
     private var autonomousCommand: Command? = null
@@ -59,17 +57,14 @@ object Robot : TimedRobot() {
         CommandXboxController(0).apply {
             rightBumper()
                 .whileTrue(
-                    intakeNote()
-                        .deadlineWith(Chassis.autoAlignToNote { ChassisSpeeds(2.0, 0.0, 0.0) })
-                        .withName("Auto Note Align")
+                    intakeNote().deadlineWith(Chassis.autoAlignToNote()).withName("Auto Note Align")
                 )
 
             val baseDrive = BaseSwerveDrive(hid, Constants.MOTION_LIMITS)
-
             rightBumper()
                 .whileTrue(
                     intakeNote()
-                        .deadlineWith(Chassis.autoAlignToNote { ChassisSpeeds(2.0, 0.0, 0.0) })
+                        .deadlineWith(Chassis.autoAlignToNote())
                         .withName("Auto Pickup Note")
                 )
             leftBumper()
@@ -91,19 +86,13 @@ object Robot : TimedRobot() {
             x().whileTrue(VarFeedPrime(Constants.SHOOTER_POSITION))
 
             leftTrigger()
-                .whileTrue(
-                    Shooter.setSpeedCommand(Constants.SHOT_VELOCITY)
-                        .alongWith(VarShootPrime())
-                        .withName("Feed")
-                )
-                .onFalse(
-                    Shooter.setSpeedCommand(RotationsPerSecond.of(0.0)).alongWith(Wrist.stow())
-                )
+                .whileTrue(Shooter.spinUp().alongWith(VarShootPrime()).withName("Feed"))
+                .onFalse(Shooter.stop().alongWith(Wrist.stow()))
 
-            y().whileTrue(Wrist.ampPosition().alongWith(Elevator.ampPosition()).withName("Amp"))
+            y().whileTrue(Wrist.ampPosition().alongWith(Elevator.goToAmp()).withName("Amp"))
                 .onFalse(Wrist.stow())
 
-            a().whileTrue(Elevator.climb())
+            a().whileTrue(Elevator.goToClimb())
             rightBumper().whileTrue(intakeNote())
 
             leftBumper().whileTrue(Feeder.eject())
@@ -113,26 +102,22 @@ object Robot : TimedRobot() {
     // SysId Controller
     init {
         CommandXboxController(5).apply {
-            a().whileTrue(Shooter.sysId())
-            b().whileTrue(Chassis.sysId())
-            x().whileTrue(Elevator.sysId())
-            y().whileTrue(Wrist.sysId())
+            a().whileTrue(Shooter.runSysId())
+            b().whileTrue(Chassis.runSysId())
+            x().whileTrue(Elevator.runSysId())
+            y().whileTrue(Wrist.runSysId())
         }
-    }
-
-    init {
-        Chassis.initAutoBuilder()
     }
 
     private fun intakeNote() =
-        Feeder.intake().deadlineWith(Intake.intake, Wrist.stow()).withName("Pick Up Note")
+        Feeder.intake().deadlineWith(Intake.intake(), Wrist.stow()).withName("Pick Up Note")
 
     init {
         CommandScheduler.getInstance().onCommandInitialize { command ->
-            println("${command.name} initialized:")
+            println("${command.name} initialized")
         }
         CommandScheduler.getInstance().onCommandFinish { command ->
-            println("${command.name} finished:")
+            println("${command.name} finished")
         }
 
         /** We use extra controllers for running tests, but these aren't always plugged in */
@@ -196,6 +181,8 @@ object Robot : TimedRobot() {
             .onTrue(Elevator.coast().alongWith(Wrist.coast()))
 
         addPeriodic(PoseEstimator::update, 0.02, 0.015)
+
+        SmartDashboard.putData(PowerDistribution(1, PowerDistribution.ModuleType.kRev))
     }
 
     // Autonomous Definitions
@@ -215,8 +202,8 @@ object Robot : TimedRobot() {
         NamedCommands.registerCommands(
             mapOf(
                 "Intake" to intakeNote(),
-                "StopShooter" to Shooter.setSpeedCommand(RotationsPerSecond.of(0.0)),
-                "StartShooter" to Shooter.setSpeedCommand(Constants.SHOT_VELOCITY),
+                "StopShooter" to Shooter.stop(),
+                "StartShooter" to Shooter.spinUp(),
                 "Score" to Commands.waitUntil { Shooter.isAtSpeed }.andThen(Feeder.shoot()),
                 "stow" to Wrist.stow(),
                 "Target" to
@@ -229,7 +216,7 @@ object Robot : TimedRobot() {
                     ),
                 "DriveToNote" to
                     intakeNote()
-                        .deadlineWith(Chassis.autoAlignToNote { ChassisSpeeds(2.0, 0.0, 0.0) })
+                        .deadlineWith(Chassis.autoAlignToNote())
                         .until {
                             when (DriverStation.getAlliance().getOrNull()) {
                                 DriverStation.Alliance.Blue ->
@@ -279,8 +266,6 @@ object Robot : TimedRobot() {
             )
 
         val SHOOTER_POSITION = Translation2d(0.0, 0.56)
-
-        val SHOT_VELOCITY = RPM.of(4000.0)
     }
 
     private fun CommandXboxController.shortRumble(type: RumbleType) =

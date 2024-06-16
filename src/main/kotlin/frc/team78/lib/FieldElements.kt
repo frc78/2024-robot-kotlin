@@ -1,9 +1,8 @@
-package frc.team78.y2024.lib
+package frc.team78.lib
 
 import edu.wpi.first.math.geometry.Translation2d
 import edu.wpi.first.wpilibj.DriverStation
 import edu.wpi.first.wpilibj.DriverStation.Alliance
-import frc.team78.lib.meters
 
 val SPEAKER_POSE
     get() =

@@ -1,4 +1,4 @@
-package frc.team78.y2024.subsystems.feeder
+package frc.team78.subsystems.feeder
 
 import com.ctre.phoenix6.configs.HardwareLimitSwitchConfigs
 import com.ctre.phoenix6.hardware.TalonFX
@@ -29,19 +29,17 @@ object Feeder : SubsystemBase() {
 
     fun intake() =
         FunctionalCommand(
-                /* onInit = */ {
+                {
                     feedMotor.configurator.apply(INTAKE_CONFIG, 0.01)
                     feedMotor.set(0.85)
                 },
-                /* onExecute = */ {},
-                /* onEnd = */ {
+                {},
+                {
                     feedMotor.set(0.0)
                     feedMotor.configurator.apply(SHOOT_CONFIG, 0.01)
                 },
-                /* isFinished = */ {
-                    feedMotor.forwardLimit.value == ForwardLimitValue.ClosedToGround
-                },
-                /* ...requirements = */ this
+                { feedMotor.forwardLimit.value == ForwardLimitValue.ClosedToGround },
+                this
             )
             .withName("Intake")
 

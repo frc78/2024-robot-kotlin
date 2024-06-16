@@ -5,7 +5,7 @@ plugins {
     id "com.diffplug.spotless" version "6.25.0"
 }
 
-def ROBOT_MAIN_CLASS = "frc.team78.y2024.Main"
+def ROBOT_MAIN_CLASS = "frc.team78.Main"
 
 // Define my targets (RoboRIO) and artifacts (deployable files)
 // This is added by GradleRIO's backing project DeployUtils.
@@ -100,7 +100,6 @@ tasks.withType(JavaCompile) {
 
 repositories {
     mavenCentral()
-
 }
 kotlin {
     jvmToolchain(17)
