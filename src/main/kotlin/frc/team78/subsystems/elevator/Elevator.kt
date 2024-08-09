@@ -1,32 +1,32 @@
 package frc.team78.subsystems.elevator
 
-import com.revrobotics.CANSparkBase
-import com.revrobotics.CANSparkLowLevel
-import com.revrobotics.CANSparkMax
-import com.revrobotics.SparkLimitSwitch
-import edu.wpi.first.math.controller.ElevatorFeedforward
-import edu.wpi.first.math.controller.ProfiledPIDController
-import edu.wpi.first.math.system.plant.DCMotor
+import com.ctre.phoenix6.configs.TalonFXConfiguration
+import com.ctre.phoenix6.controls.Follower
+import com.ctre.phoenix6.controls.MotionMagicVoltage
+import com.ctre.phoenix6.hardware.TalonFX
+import com.ctre.phoenix6.signals.GravityTypeValue
+import com.ctre.phoenix6.signals.InvertedValue
+import com.ctre.phoenix6.signals.NeutralModeValue
+import com.ctre.phoenix6.signals.ReverseLimitSourceValue
+import com.ctre.phoenix6.signals.ReverseLimitTypeValue
+import com.ctre.phoenix6.signals.ReverseLimitValue
+import com.ctre.phoenix6.signals.StaticFeedforwardSignValue
 import edu.wpi.first.math.trajectory.TrapezoidProfile
-import edu.wpi.first.units.Units
 import edu.wpi.first.units.Units.Inches
 import edu.wpi.first.units.Units.Volts
-import edu.wpi.first.wpilibj.RobotController
-import edu.wpi.first.wpilibj.simulation.ElevatorSim
-import edu.wpi.first.wpilibj.smartdashboard.Mechanism2d
-import edu.wpi.first.wpilibj.smartdashboard.MechanismLigament2d
 import edu.wpi.first.wpilibj.smartdashboard.SmartDashboard
 import edu.wpi.first.wpilibj2.command.Command
 import edu.wpi.first.wpilibj2.command.Commands
+import edu.wpi.first.wpilibj2.command.Commands.idle
 import edu.wpi.first.wpilibj2.command.FunctionalCommand
 import edu.wpi.first.wpilibj2.command.SubsystemBase
 import edu.wpi.first.wpilibj2.command.sysid.SysIdRoutine
-import frc.team78.lib.setStatusRates
+import kotlin.math.abs
 
 /**
  * Elevator subsystem
  *
- * The elevator on the 2024 robot is controlled by 2 Spark Max controllers connected to NEO motors.
+ * The elevator on the 2024 robot is controlled by 2 Falcons
  *
  * When the elevator is at the bottom, the reverse limit switch is pressed and the elevator is
  * zeroed.
@@ -40,7 +40,7 @@ object Elevator : SubsystemBase("Elevator") {
         SmartDashboard.putData(brake())
 
         // When there is no active command, move the elevator to the bottom
-        defaultCommand = moveToTarget(0.0)
+        defaultCommand = runOnce { motionMagicRequest.Position = 0.0 }.andThen(idle())
     }
 
     // Constants for the feedforward calculation
@@ -78,67 +78,57 @@ object Elevator : SubsystemBase("Elevator") {
     // Converts 1 rotation of the motor to inches of travel of the elevator
     private val POSITION_CONVERSION_FACTOR = DRUM_RADIUS.magnitude() * 2 * Math.PI / GEAR_RATIO
 
-    private const val LEADER_MOTOR_INVERTED = false
-    private const val FOLLOWER_MOTOR_INVERTED = true
+    private val leaderMotorConfiguration =
+        TalonFXConfiguration().apply {
+            Feedback.SensorToMechanismRatio = POSITION_CONVERSION_FACTOR
+            // Do not allow the motor to move upwards until after zeroing
+            SoftwareLimitSwitch.ForwardSoftLimitEnable = true
+            SoftwareLimitSwitch.ForwardSoftLimitThreshold = 0.0
+            // Allow the motor to move downwards until the limit switch is pressed
+            SoftwareLimitSwitch.ReverseSoftLimitEnable = false
+            SoftwareLimitSwitch.ReverseSoftLimitThreshold = 0.0
 
-    // Taken from CAD
-    private val CARRIAGE_MASS = Units.Pounds.of(18.427)
+            // Enable hardware reverse limit switch
+            HardwareLimitSwitch.ReverseLimitSource = ReverseLimitSourceValue.LimitSwitchPin
+            HardwareLimitSwitch.ReverseLimitType = ReverseLimitTypeValue.NormallyOpen
+            HardwareLimitSwitch.ReverseLimitEnable = true
 
-    private val MIN_HEIGHT = Inches.of(0.0)
-    private val MAX_HEIGHT = Inches.of(16.9)
+            MotorOutput.Inverted = InvertedValue.CounterClockwise_Positive
 
-    // Start above 0 so that the mechanism zeroes itself
-    private val SIM_STARTING_HEIGHT = Inches.of(5.0)
+            Slot0.kS = K_S
+            Slot0.kV = K_V
+            Slot0.kA = K_A
+            Slot0.kG = K_G
+            Slot0.kP = K_P
+            Slot0.kI = K_I
+            Slot0.kD = K_D
+            Slot0.GravityType = GravityTypeValue.Elevator_Static
+            Slot0.StaticFeedforwardSign = StaticFeedforwardSignValue.UseVelocitySign
 
-    private val elevatorGearbox = DCMotor.getNEO(2)
-    private val elevatorSim =
-        ElevatorSim(
-            elevatorGearbox,
-            GEAR_RATIO,
-            CARRIAGE_MASS.`in`(Units.Kilograms),
-            DRUM_RADIUS.`in`(Units.Meters),
-            MIN_HEIGHT.`in`(Units.Meters),
-            MAX_HEIGHT.`in`(Units.Meters),
-            true,
-            SIM_STARTING_HEIGHT.`in`(Units.Meters),
-        )
-
-    // Simulate the elevator on the SmartDashboard
-    private val mech2d = Mechanism2d(20.0, 50.0)
-    private val root2d = mech2d.getRoot("Elevator Root", 10.0, 0.0)
-    private val elevatorMech =
-        root2d.append(MechanismLigament2d("Elevator", elevatorSim.positionMeters, 90.0))
-
-    private val feedForward = ElevatorFeedforward(K_S, K_G, K_V, K_A)
-
-    private val pidController =
-        ProfiledPIDController(K_P, K_I, K_D, constraints, K_DT).apply { setTolerance(kTolerance) }
-
-    private val leaderMotor =
-        CANSparkMax(LEADER_MOTOR_ID, CANSparkLowLevel.MotorType.kBrushless).apply {
-            // Restore factory defaults in case the motor controller is swapped out during
-            // competition
-            restoreFactoryDefaults()
-
-            inverted = LEADER_MOTOR_INVERTED
-            // Initially disable the soft limits until the elevator is zeroed
-            enableSoftLimit(CANSparkBase.SoftLimitDirection.kForward, false)
-            enableSoftLimit(CANSparkBase.SoftLimitDirection.kReverse, false)
-            setStatusRates(10, 20, 20)
+            MotionMagic.MotionMagicAcceleration = 80.0
+            MotionMagic.MotionMagicCruiseVelocity = 15.0
         }
 
-    private val reverseLimitSwitch =
-        leaderMotor.getReverseLimitSwitch(SparkLimitSwitch.Type.kNormallyOpen)
+    private val leader =
+        TalonFX(LEADER_MOTOR_ID).apply {
+            position.setUpdateFrequency(50.0)
+            optimizeBusUtilization()
+            configurator.apply(leaderMotorConfiguration)
+        }
 
     private val follower =
-        CANSparkMax(FOLLOWER_MOTOR_ID, CANSparkLowLevel.MotorType.kBrushless).apply {
-            restoreFactoryDefaults()
-            follow(leaderMotor, FOLLOWER_MOTOR_INVERTED)
-            // Slowly update frame 0 in case of faults
-            setStatusRates(500)
-        }
-    private val encoder =
-        leaderMotor.encoder.apply { positionConversionFactor = POSITION_CONVERSION_FACTOR }
+        TalonFX(FOLLOWER_MOTOR_ID).apply { setControl(Follower(LEADER_MOTOR_ID, true)) }
+
+    private val motionMagicRequest =
+        MotionMagicVoltage(
+            0.0,
+            true,
+            0.0,
+            0,
+            false,
+            false,
+            false,
+        )
 
     /** Whether the elevator has been zeroed */
     var zeroed = false
@@ -146,10 +136,10 @@ object Elevator : SubsystemBase("Elevator") {
 
     /** Position of the elevator in inches */
     val position
-        get() = encoder.position
+        get() = leader.position.value
 
     val isAtGoal
-        get() = pidController.atGoal()
+        get() = abs(position - motionMagicRequest.Position) < kTolerance
 
     /**
      * Command to set the motors to coast mode.
@@ -158,8 +148,8 @@ object Elevator : SubsystemBase("Elevator") {
      */
     fun coast() =
         Commands.runOnce({
-                leaderMotor.idleMode = CANSparkBase.IdleMode.kCoast
-                follower.idleMode = CANSparkBase.IdleMode.kCoast
+                leader.setNeutralMode(NeutralModeValue.Coast)
+                follower.setNeutralMode(NeutralModeValue.Coast)
             })
             .withName("Coast Elevator")
             .ignoringDisable(true)
@@ -171,8 +161,8 @@ object Elevator : SubsystemBase("Elevator") {
      */
     fun brake() =
         Commands.runOnce({
-                leaderMotor.idleMode = CANSparkBase.IdleMode.kBrake
-                follower.idleMode = CANSparkBase.IdleMode.kBrake
+                leader.setNeutralMode(NeutralModeValue.Brake)
+                follower.setNeutralMode(NeutralModeValue.Brake)
             })
             .withName("Brake Elevator")
             .ignoringDisable(true)
@@ -191,26 +181,19 @@ object Elevator : SubsystemBase("Elevator") {
                 },
                 {
                     // Drive the elevator down slowly
-                    leaderMotor.set(-0.1)
+                    leader.set(-0.1)
                 },
                 {
-                    encoder.position = 0.0
-                    pidController.reset(0.0)
-                    leaderMotor.apply {
-                        enableSoftLimit(CANSparkBase.SoftLimitDirection.kForward, true)
-                        setSoftLimit(
-                            CANSparkBase.SoftLimitDirection.kForward,
-                            MAX_HEIGHT.magnitude().toFloat(),
-                        )
-                        enableSoftLimit(CANSparkBase.SoftLimitDirection.kReverse, true)
-                        setSoftLimit(
-                            CANSparkBase.SoftLimitDirection.kReverse,
-                            MIN_HEIGHT.magnitude().toFloat(),
-                        )
+                    leader.setPosition(0.0)
+                    leaderMotorConfiguration.apply {
+                        SoftwareLimitSwitch.ReverseSoftLimitEnable = true
+                        SoftwareLimitSwitch.ReverseSoftLimitThreshold = 0.0
+                        SoftwareLimitSwitch.ForwardSoftLimitEnable = true
+                        SoftwareLimitSwitch.ForwardSoftLimitThreshold = CLIMB_HEIGHT
                     }
                     zeroed = true
                 },
-                { reverseLimitSwitch.isPressed },
+                { leader.reverseLimit.value == ReverseLimitValue.ClosedToGround },
                 this,
             )
             // Don't allow interrupting this routine. It must complete to zero the elevator
@@ -218,53 +201,16 @@ object Elevator : SubsystemBase("Elevator") {
             .withName("Zero Elevator")
 
     /** Command to move the elevator to the AMP height */
-    fun goToAmp() = moveToTarget(AMP_HEIGHT)
+    fun goToAmp() = runOnce { motionMagicRequest.Position = AMP_HEIGHT }.andThen(idle())
 
     /** Command to move the elevator to the CLIMB height */
-    fun goToClimb() = moveToTarget(CLIMB_HEIGHT)
-
-    /**
-     * Command to move the elevator to a specific height.
-     *
-     * This command uses a motion profile. If the elevator is zeroed, the controller will calculate
-     * the required voltage based on feedforward constants, and apply that voltage to the motors.
-     * Any error in following the profile will be corrected by the PID controller.
-     */
-    private fun moveToTarget(target: Double) =
-        FunctionalCommand(
-                { pidController.setGoal(target) },
-                {
-                    if (zeroed) {
-                        val currentVelocity = pidController.setpoint.velocity
-                        leaderMotor.setVoltage(
-                            pidController.calculate(encoder.position) +
-                                feedForward.calculate(
-                                    currentVelocity,
-                                    pidController.setpoint.velocity,
-                                    K_DT
-                                )
-                        )
-                    }
-                },
-                {},
-                { false },
-                this,
-            )
-            .withName("setTo[$target]")
-
-    override fun simulationPeriodic() {
-        elevatorSim.setInput(leaderMotor.appliedOutput * RobotController.getBatteryVoltage())
-        elevatorSim.update(K_DT)
-        // TODO the encoder doesn't get updated in sim, so the mechanism just falls once it reaches
-        // the top?
-        elevatorMech.length = elevatorSim.positionMeters
-    }
+    fun goToClimb() = runOnce { motionMagicRequest.Position = CLIMB_HEIGHT }.andThen(idle())
 
     private val sysIdRoutine =
         SysIdRoutine(
             SysIdRoutine.Config(),
             SysIdRoutine.Mechanism(
-                { voltage -> leaderMotor.setVoltage(voltage.`in`(Volts)) },
+                { voltage -> leader.setVoltage(voltage.`in`(Volts)) },
                 null,
                 this,
                 "elevator",
@@ -274,16 +220,16 @@ object Elevator : SubsystemBase("Elevator") {
     fun runSysId() =
         Commands.sequence(
             sysIdRoutine.dynamic(SysIdRoutine.Direction.kForward).until {
-                leaderMotor.getFault(CANSparkBase.FaultID.kSoftLimitFwd)
+                leader.fault_ForwardSoftLimit.value
             },
             sysIdRoutine.dynamic(SysIdRoutine.Direction.kReverse).until {
-                reverseLimitSwitch.isPressed
+                leader.reverseLimit.value == ReverseLimitValue.ClosedToGround
             },
             sysIdRoutine.quasistatic(SysIdRoutine.Direction.kForward).until {
-                leaderMotor.getFault(CANSparkBase.FaultID.kSoftLimitFwd)
+                leader.fault_ForwardSoftLimit.value
             },
             sysIdRoutine.quasistatic(SysIdRoutine.Direction.kReverse).until {
-                reverseLimitSwitch.isPressed
+                leader.reverseLimit.value == ReverseLimitValue.ClosedToGround
             },
         )
 }

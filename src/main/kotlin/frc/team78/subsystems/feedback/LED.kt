@@ -75,7 +75,8 @@ object LED : SubsystemBase() {
                     15,
                     ColorFlowAnimation.Direction.Forward,
                     7,
-                ))
+                )
+            )
             animate(
                 ColorFlowAnimation(
                     0,
@@ -86,7 +87,8 @@ object LED : SubsystemBase() {
                     15,
                     ColorFlowAnimation.Direction.Backward,
                     7,
-                ))
+                )
+            )
             animate(
                 ColorFlowAnimation(
                     0,
@@ -97,7 +99,8 @@ object LED : SubsystemBase() {
                     7,
                     ColorFlowAnimation.Direction.Forward,
                     0,
-                ))
+                )
+            )
             animate(
                 ColorFlowAnimation(
                     0,
@@ -108,7 +111,8 @@ object LED : SubsystemBase() {
                     7,
                     ColorFlowAnimation.Direction.Backward,
                     0,
-                ))
+                )
+            )
         }
     }
 
