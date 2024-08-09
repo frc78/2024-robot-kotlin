@@ -11,6 +11,12 @@ import edu.wpi.first.units.Units.RadiansPerSecond
 import edu.wpi.first.units.Units.Seconds
 import edu.wpi.first.units.Units.Volts
 
+/**
+ * Helper function to set CAN frame status periods. Unused CAN frames can take up bandwidth on the
+ * CAN bus, so by setting their period to the max value, we can free up bus usage.
+ *
+ * This is an extension function that can work on any CANSparkBase object.
+ */
 fun CANSparkBase.setStatusRates(
     period0: Int = 32767,
     period1: Int = 32767,
@@ -31,14 +37,21 @@ fun CANSparkBase.setStatusRates(
     setPeriodicFramePeriod(CANSparkLowLevel.PeriodicFrame.kStatus7, period7)
 }
 
-fun CANSparkBase.setSingleStatusRate(frame: CANSparkLowLevel.PeriodicFrame, period: Int) {
-    setPeriodicFramePeriod(frame, period)
-}
-
+/**
+ * Helper extension function to use the negative operator on a Measure instance
+ *
+ * Example: -Volts.of(1)
+ */
 operator fun <U : Unit<U>> Measure<U>.unaryMinus(): Measure<U> = this.negate()
 
+/** Helper function to use the division operator on a Measure instance */
 operator fun <U : Unit<U>> Measure<U>.div(divisor: Number) = this.divide(divisor.toDouble())
 
+/**
+ * Helper functions to create common Measures
+ *
+ * Usage: 5.inches
+ */
 val Number.inches
     get() = Inches.of(this.toDouble())
 val Number.meters
@@ -55,7 +68,3 @@ val Number.radiansPerSecond
     get() = RadiansPerSecond.of(this.toDouble())
 val Number.radiansPerSecondPerSecond
     get() = RadiansPerSecond.of(this.toDouble()).per(1.seconds)
-
-fun <U : Unit<U>> U.contains(measure: Measure<U>): Double {
-    return measure.`in`(this)
-}

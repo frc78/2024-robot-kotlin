@@ -20,6 +20,7 @@ import edu.wpi.first.wpilibj.DriverStation
 import edu.wpi.first.wpilibj.DriverStation.Alliance
 import edu.wpi.first.wpilibj.smartdashboard.SmartDashboard
 import edu.wpi.first.wpilibj2.command.Commands
+import edu.wpi.first.wpilibj2.command.Commands.idle
 import edu.wpi.first.wpilibj2.command.FunctionalCommand
 import edu.wpi.first.wpilibj2.command.SubsystemBase
 import edu.wpi.first.wpilibj2.command.sysid.SysIdRoutine
@@ -29,7 +30,16 @@ import frc.team78.lib.div
 import frc.team78.lib.unaryMinus
 import kotlin.math.hypot
 
+/**
+ * Chassis subsystem. This class is responsible for controlling the robot's swerve drive chassis.
+ */
 object Chassis : SubsystemBase() {
+
+    init {
+        SmartDashboard.putData(this)
+        SmartDashboard.putData(brake())
+        SmartDashboard.putData(coast())
+    }
 
     private const val FRONT_LEFT_DRIVE_ID = 1
     private const val FRONT_LEFT_STEER_ID = 2
@@ -97,6 +107,12 @@ object Chassis : SubsystemBase() {
     val states: Array<SwerveModuleState>
         get() = swerveModules.map { it.swerveModuleState }.toTypedArray()
 
+    /**
+     * Drives the robot with the given speeds.
+     *
+     * @param speeds Robot-relative speeds to drive at.
+     * @param centerOfRotation Point to rotate about relative to the center of the robot
+     */
     fun drive(speeds: ChassisSpeeds, centerOfRotation: Translation2d = Translation2d()) {
         val discretizedSpeeds = ChassisSpeeds.discretize(speeds, 0.02)
         val states = kinematics.toSwerveModuleStates(discretizedSpeeds, centerOfRotation)
@@ -105,16 +121,15 @@ object Chassis : SubsystemBase() {
         statePub.set(swerveModules.map { it.swerveModuleState }.toTypedArray())
     }
 
+    /** Command to lock the wheels by orienting them to an X-pattern. */
     fun lockWheels() =
-        startEnd(
-            {
+        runOnce {
                 swerveModules[0].setState(SwerveModuleState(0.0, Rotation2d.fromDegrees(45.0)))
                 swerveModules[1].setState(SwerveModuleState(0.0, Rotation2d.fromDegrees(135.0)))
                 swerveModules[2].setState(SwerveModuleState(0.0, Rotation2d.fromDegrees(135.0)))
                 swerveModules[3].setState(SwerveModuleState(0.0, Rotation2d.fromDegrees(45.0)))
-            },
-            {},
-        )
+            }
+            .andThen(idle())
 
     private val sysIdRoutine =
         SysIdRoutine(
@@ -127,6 +142,7 @@ object Chassis : SubsystemBase() {
             ),
         )
 
+    /** Command to run the SysID sequence */
     fun runSysId() =
         Commands.sequence(
             sysIdRoutine.dynamic(SysIdRoutine.Direction.kForward),
@@ -138,16 +154,19 @@ object Chassis : SubsystemBase() {
             sysIdRoutine.quasistatic(SysIdRoutine.Direction.kReverse),
         )
 
+    /** Command to enable brake mode on the chassis motors */
     fun brake() =
         runOnce { swerveModules.forEach { it.enableBrakeMode() } }
             .ignoringDisable(true)
             .withName("Brake Chassis")
 
+    /** Command to enable coast mode on the chassis motors */
     fun coast() =
         runOnce { swerveModules.forEach { it.enableCoastMode() } }
             .ignoringDisable(true)
             .withName("Coast Chassis")
 
+    /** Network table subscriber for the note detection position */
     private val noteDetectionYaw =
         NetworkTableInstance.getDefault()
             .getTable("photonvision/Fisheye")
@@ -155,6 +174,7 @@ object Chassis : SubsystemBase() {
             .subscribe(0.0)
     private val rotationController = PIDController(0.15, 0.0, 0.0015)
 
+    /** Command to drive into the note detected by the camera */
     fun autoAlignToNote() =
         FunctionalCommand(
             {
@@ -174,10 +194,4 @@ object Chassis : SubsystemBase() {
             { false },
             this,
         )
-
-    init {
-        SmartDashboard.putData(this)
-        SmartDashboard.putData(brake())
-        SmartDashboard.putData(coast())
-    }
 }

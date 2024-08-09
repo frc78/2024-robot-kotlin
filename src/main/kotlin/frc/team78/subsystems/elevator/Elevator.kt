@@ -23,13 +23,23 @@ import edu.wpi.first.wpilibj2.command.SubsystemBase
 import edu.wpi.first.wpilibj2.command.sysid.SysIdRoutine
 import frc.team78.lib.setStatusRates
 
+/**
+ * Elevator subsystem
+ *
+ * The elevator on the 2024 robot is controlled by 2 Spark Max controllers connected to NEO motors.
+ *
+ * When the elevator is at the bottom, the reverse limit switch is pressed and the elevator is
+ * zeroed.
+ */
 object Elevator : SubsystemBase("Elevator") {
 
+    // Initialize the SmartDashboard with the elevator commands, and details about this subsystem
     init {
         SmartDashboard.putData(this)
         SmartDashboard.putData(coast())
         SmartDashboard.putData(brake())
 
+        // When there is no active command, move the elevator to the bottom
         defaultCommand = moveToTarget(0.0)
     }
 
@@ -51,6 +61,7 @@ object Elevator : SubsystemBase("Elevator") {
     private const val LEADER_MOTOR_ID = 11
     private const val FOLLOWER_MOTOR_ID = 12
 
+    // The elevator can move at a max velocity of 15 in/s and a max acceleration of 80 in/s^2
     private val constraints: TrapezoidProfile.Constraints = TrapezoidProfile.Constraints(15.0, 80.0)
 
     private const val AMP_HEIGHT = 16.3
@@ -58,9 +69,13 @@ object Elevator : SubsystemBase("Elevator") {
 
     private const val GEAR_RATIO = 5.0 * 5.0
 
-    /** Diameter is 1.29 inches */
+    /**
+     * Pitch Diameter is 1.29 inches. This measurement is taken from the official drawing of the
+     * part https://www.revrobotics.com/content/docs/REV-21-2016-DR.pdf
+     */
     private val DRUM_RADIUS = Inches.of(1.29 / 2.0)
 
+    // Converts 1 rotation of the motor to inches of travel of the elevator
     private val POSITION_CONVERSION_FACTOR = DRUM_RADIUS.magnitude() * 2 * Math.PI / GEAR_RATIO
 
     private const val LEADER_MOTOR_INVERTED = false
@@ -88,6 +103,7 @@ object Elevator : SubsystemBase("Elevator") {
             SIM_STARTING_HEIGHT.`in`(Units.Meters),
         )
 
+    // Simulate the elevator on the SmartDashboard
     private val mech2d = Mechanism2d(20.0, 50.0)
     private val root2d = mech2d.getRoot("Elevator Root", 10.0, 0.0)
     private val elevatorMech =
@@ -100,8 +116,12 @@ object Elevator : SubsystemBase("Elevator") {
 
     private val leaderMotor =
         CANSparkMax(LEADER_MOTOR_ID, CANSparkLowLevel.MotorType.kBrushless).apply {
+            // Restore factory defaults in case the motor controller is swapped out during
+            // competition
             restoreFactoryDefaults()
+
             inverted = LEADER_MOTOR_INVERTED
+            // Initially disable the soft limits until the elevator is zeroed
             enableSoftLimit(CANSparkBase.SoftLimitDirection.kForward, false)
             enableSoftLimit(CANSparkBase.SoftLimitDirection.kReverse, false)
             setStatusRates(10, 20, 20)
@@ -114,20 +134,28 @@ object Elevator : SubsystemBase("Elevator") {
         CANSparkMax(FOLLOWER_MOTOR_ID, CANSparkLowLevel.MotorType.kBrushless).apply {
             restoreFactoryDefaults()
             follow(leaderMotor, FOLLOWER_MOTOR_INVERTED)
+            // Slowly update frame 0 in case of faults
             setStatusRates(500)
         }
     private val encoder =
         leaderMotor.encoder.apply { positionConversionFactor = POSITION_CONVERSION_FACTOR }
 
+    /** Whether the elevator has been zeroed */
     var zeroed = false
         private set
 
+    /** Position of the elevator in inches */
     val position
         get() = encoder.position
 
     val isAtGoal
         get() = pidController.atGoal()
 
+    /**
+     * Command to set the motors to coast mode.
+     *
+     * This allows for more easily moving the elevator by hand when the robot is disabled.
+     */
     fun coast() =
         Commands.runOnce({
                 leaderMotor.idleMode = CANSparkBase.IdleMode.kCoast
@@ -136,6 +164,11 @@ object Elevator : SubsystemBase("Elevator") {
             .withName("Coast Elevator")
             .ignoringDisable(true)
 
+    /**
+     * Command to set the motors to brake mode.
+     *
+     * This is necessary to hold the robot on the stage when the robot is disabled.
+     */
     fun brake() =
         Commands.runOnce({
                 leaderMotor.idleMode = CANSparkBase.IdleMode.kBrake
@@ -144,10 +177,22 @@ object Elevator : SubsystemBase("Elevator") {
             .withName("Brake Elevator")
             .ignoringDisable(true)
 
+    /**
+     * Command to run the zeroing routine.
+     *
+     * The routine will slowly move the elevator down until the limit switch is pressed, then set
+     * the soft limits and allow for positional control.
+     */
     fun zero() =
         FunctionalCommand(
-                { zeroed = false },
-                { leaderMotor.set(-0.1) },
+                {
+                    // When the zero routine starts, the elevator is not zeroed
+                    zeroed = false
+                },
+                {
+                    // Drive the elevator down slowly
+                    leaderMotor.set(-0.1)
+                },
                 {
                     encoder.position = 0.0
                     pidController.reset(0.0)
@@ -168,13 +213,23 @@ object Elevator : SubsystemBase("Elevator") {
                 { reverseLimitSwitch.isPressed },
                 this,
             )
+            // Don't allow interrupting this routine. It must complete to zero the elevator
             .withInterruptBehavior(Command.InterruptionBehavior.kCancelIncoming)
             .withName("Zero Elevator")
 
+    /** Command to move the elevator to the AMP height */
     fun goToAmp() = moveToTarget(AMP_HEIGHT)
 
+    /** Command to move the elevator to the CLIMB height */
     fun goToClimb() = moveToTarget(CLIMB_HEIGHT)
 
+    /**
+     * Command to move the elevator to a specific height.
+     *
+     * This command uses a motion profile. If the elevator is zeroed, the controller will calculate
+     * the required voltage based on feedforward constants, and apply that voltage to the motors.
+     * Any error in following the profile will be corrected by the PID controller.
+     */
     private fun moveToTarget(target: Double) =
         FunctionalCommand(
                 { pidController.setGoal(target) },

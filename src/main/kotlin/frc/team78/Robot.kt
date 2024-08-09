@@ -37,6 +37,7 @@ import frc.team78.lib.radiansPerSecond
 import frc.team78.lib.radiansPerSecondPerSecond
 import frc.team78.subsystems.chassis.BaseSwerveDrive
 import frc.team78.subsystems.chassis.Chassis
+import frc.team78.subsystems.chassis.FieldOrientedDrive
 import frc.team78.subsystems.chassis.FieldOrientedWithCardinal
 import frc.team78.subsystems.chassis.PoseEstimator
 import frc.team78.subsystems.elevator.Elevator
@@ -45,10 +46,10 @@ import frc.team78.subsystems.feeder.Feeder
 import frc.team78.subsystems.intake.Intake
 import frc.team78.subsystems.shooter.Shooter
 import frc.team78.subsystems.wrist.Wrist
+import org.littletonrobotics.urcl.URCL
 import java.util.*
 import kotlin.jvm.optionals.getOrNull
 import kotlin.math.PI
-import org.littletonrobotics.urcl.URCL
 
 object Robot : TimedRobot() {
     private var autonomousCommand: Command? = null
@@ -61,6 +62,7 @@ object Robot : TimedRobot() {
                 )
 
             val baseDrive = BaseSwerveDrive(hid, Constants.MOTION_LIMITS)
+            Chassis.defaultCommand = FieldOrientedDrive(baseDrive::chassisSpeeds)
             rightBumper()
                 .whileTrue(
                     intakeNote()
