@@ -1,11 +1,15 @@
 package frc.team78.subsystems.chassis
 
+import com.ctre.phoenix6.configs.CANcoderConfiguration
+import com.ctre.phoenix6.configs.TalonFXConfiguration
+import com.ctre.phoenix6.controls.PositionVoltage
+import com.ctre.phoenix6.controls.VelocityVoltage
+import com.ctre.phoenix6.hardware.CANcoder
+import com.ctre.phoenix6.hardware.TalonFX
+import com.ctre.phoenix6.signals.FeedbackSensorSourceValue
+import com.ctre.phoenix6.signals.NeutralModeValue
+import com.ctre.phoenix6.signals.SensorDirectionValue
 import com.pathplanner.lib.commands.PathfindingCommand
-import com.revrobotics.CANSparkBase
-import com.revrobotics.CANSparkLowLevel
-import com.revrobotics.CANSparkMax
-import com.revrobotics.SparkPIDController
-import edu.wpi.first.math.controller.SimpleMotorFeedforward
 import edu.wpi.first.math.geometry.Rotation2d
 import edu.wpi.first.math.kinematics.SwerveModulePosition
 import edu.wpi.first.math.kinematics.SwerveModuleState
@@ -13,7 +17,6 @@ import edu.wpi.first.units.Distance
 import edu.wpi.first.units.Measure
 import edu.wpi.first.units.Units.Inches
 import frc.team78.lib.div
-import frc.team78.lib.setStatusRates
 import kotlin.math.PI
 import kotlin.math.abs
 
@@ -23,82 +26,105 @@ data class ClosedLoopParameters(val kP: Double, val kI: Double, val kD: Double)
 
 class SwerveModule(driveCanId: Int, steerCanId: Int, driveOpenLoopParameters: OpenLoopParameters) {
 
+    private val driveConfiguration =
+        TalonFXConfiguration().apply {
+            Slot0.kS = driveOpenLoopParameters.kS
+            Slot0.kV = driveOpenLoopParameters.kV
+            Slot0.kA = driveOpenLoopParameters.kA
+            Slot0.kP = DRIVE_CLOSED_LOOP_PARAMETERS.kP
+            Slot0.kI = DRIVE_CLOSED_LOOP_PARAMETERS.kI
+            Slot0.kD = DRIVE_CLOSED_LOOP_PARAMETERS.kD
+            Feedback.SensorToMechanismRatio = DRIVE_ENCODER_CONVERSION_FACTOR.magnitude()
+
+            CurrentLimits.StatorCurrentLimit = DRIVE_CURRENT_LIMIT
+            CurrentLimits.StatorCurrentLimitEnable = true
+        }
     private val driveMotor =
-        CANSparkMax(driveCanId, CANSparkLowLevel.MotorType.kBrushless).apply {
-            restoreFactoryDefaults()
-            idleMode = CANSparkBase.IdleMode.kBrake
-            setSmartCurrentLimit(DRIVE_CURRENT_LIMIT)
-            enableVoltageCompensation(NOMINAL_VOLTAGE)
+        TalonFX(driveCanId).apply {
+            setNeutralMode(NeutralModeValue.Brake)
             inverted = DRIVE_INVERTED
-            setStatusRates(10, 20, 20)
+            configurator.apply(driveConfiguration)
+            position.setUpdateFrequency(100.0)
+            velocity.setUpdateFrequency(100.0)
+            statorCurrent.setUpdateFrequency(50.0)
+            optimizeBusUtilization()
         }
 
+    private val driveControl =
+        VelocityVoltage(
+            0.0,
+            0.0,
+            true,
+            0.0,
+            0,
+            false,
+            false,
+            false,
+        )
+
+    private val encoderConfigs =
+        CANcoderConfiguration().apply {
+            MagnetSensor.SensorDirection = SensorDirectionValue.CounterClockwise_Positive
+        }
+
+    init {
+        CANcoder(steerCanId).apply { this.configurator.apply(encoderConfigs) }
+    }
+
+    private val steerConfiguration =
+        TalonFXConfiguration().apply {
+            Slot0.kP = STEER_CLOSED_LOOP_PARAMETERS.kP
+            Slot0.kI = STEER_CLOSED_LOOP_PARAMETERS.kI
+            Slot0.kD = STEER_CLOSED_LOOP_PARAMETERS.kD
+            Feedback.FeedbackSensorSource = FeedbackSensorSourceValue.FusedCANcoder
+            Feedback.RotorToSensorRatio = 150.0 / 7.0
+            Feedback.FeedbackRemoteSensorID = steerCanId
+            ClosedLoopGeneral.ContinuousWrap = true
+
+            CurrentLimits.StatorCurrentLimit = STEER_CURRENT_LIMIT
+            CurrentLimits.StatorCurrentLimitEnable = true
+        }
     private val steerMotor =
-        CANSparkMax(steerCanId, CANSparkLowLevel.MotorType.kBrushless).apply {
-            restoreFactoryDefaults()
-            idleMode = CANSparkBase.IdleMode.kBrake
-            setSmartCurrentLimit(STEER_CURRENT_LIMIT)
-            enableVoltageCompensation(NOMINAL_VOLTAGE)
+        TalonFX(steerCanId).apply {
+            setNeutralMode(NeutralModeValue.Brake)
             inverted = STEER_INVERTED
-            setStatusRates(10, 20, period5 = 100)
+            configurator.apply(steerConfiguration)
+            position.setUpdateFrequency(100.0)
+            velocity.setUpdateFrequency(100.0)
+            statorCurrent.setUpdateFrequency(50.0)
+            optimizeBusUtilization()
         }
 
-    private val driveEncoder =
-        driveMotor.encoder.apply {
-            positionConversionFactor = DRIVE_ENCODER_CONVERSION_FACTOR.magnitude()
-            velocityConversionFactor = DRIVE_ENCODER_CONVERSION_FACTOR.magnitude() / 60.0
-            averageDepth = 2
-            measurementPeriod = 16
-        }
-
-    private val steerEncoder =
-        steerMotor.absoluteEncoder.apply {
-            velocityConversionFactor = 1.0 / 60.0
-            inverted = STEER_ENCODER_INVERTED
-        }
-
-    private val driveClosedLoopController =
-        driveMotor.pidController.apply {
-            p = DRIVE_CLOSED_LOOP_PARAMETERS.kP
-            i = DRIVE_CLOSED_LOOP_PARAMETERS.kI
-            d = DRIVE_CLOSED_LOOP_PARAMETERS.kD
-        }
-    private val steerClosedLoopController =
-        steerMotor.pidController.apply {
-            setFeedbackDevice(steerEncoder)
-            positionPIDWrappingEnabled = true
-            positionPIDWrappingMinInput = STEER_ENCODER_PID_MIN
-            positionPIDWrappingMaxInput = STEER_ENCODER_PID_MAX
-            p = STEER_CLOSED_LOOP_PARAMETERS.kP
-            i = STEER_CLOSED_LOOP_PARAMETERS.kI
-            d = STEER_CLOSED_LOOP_PARAMETERS.kD
-        }
-
-    private val driveFeedforward =
-        SimpleMotorFeedforward(
-            driveOpenLoopParameters.kS,
-            driveOpenLoopParameters.kV,
-            driveOpenLoopParameters.kA
+    private val steerControl =
+        PositionVoltage(
+            0.0,
+            0.0,
+            true,
+            0.0,
+            0,
+            false,
+            false,
+            false,
         )
 
     fun enableBrakeMode() {
-        driveMotor.idleMode = CANSparkBase.IdleMode.kBrake
-        steerMotor.idleMode = CANSparkBase.IdleMode.kBrake
+        driveMotor.setNeutralMode(NeutralModeValue.Brake)
+        steerMotor.setNeutralMode(NeutralModeValue.Brake)
     }
 
     fun enableCoastMode() {
-        driveMotor.idleMode = CANSparkBase.IdleMode.kCoast
-        steerMotor.idleMode = CANSparkBase.IdleMode.kCoast
+        driveMotor.setNeutralMode(NeutralModeValue.Coast)
+        steerMotor.setNeutralMode(NeutralModeValue.Coast)
     }
 
     private val driveVelocity
-        get() = driveEncoder.velocity
+        get() = driveMotor.velocity.value
 
     private val drivePosition
-        get() = driveEncoder.position
+        get() = driveMotor.position.value
 
     val steerPosition
-        get() = Rotation2d.fromRotations(steerEncoder.position)
+        get() = Rotation2d.fromRotations(steerMotor.position.value)
 
     val swerveModuleState
         get() = SwerveModuleState(driveVelocity, steerPosition)
@@ -115,34 +141,21 @@ class SwerveModule(driveCanId: Int, steerCanId: Int, driveOpenLoopParameters: Op
 
         PathfindingCommand.warmupCommand().schedule()
 
-        driveClosedLoopController.setReference(
-            state.speedMetersPerSecond,
-            CANSparkBase.ControlType.kVelocity,
-            0,
-            driveFeedforward.calculate(driveVelocity, optimizedState.speedMetersPerSecond, 0.02),
-            SparkPIDController.ArbFFUnits.kVoltage
-        )
+        driveMotor.setControl(driveControl.withVelocity(state.speedMetersPerSecond))
 
-        steerClosedLoopController.setReference(
-            optimizedState.angle.rotations,
-            CANSparkBase.ControlType.kPosition
-        )
+        steerMotor.setControl(steerControl.withPosition(optimizedState.angle.rotations))
     }
 
     fun openLoopDiffDrive(voltage: Double) {
-        steerClosedLoopController.setReference(0.0, CANSparkBase.ControlType.kPosition)
+        steerMotor.setControl(steerControl.withPosition(0.0))
         driveMotor.setVoltage(voltage)
     }
 
     companion object {
-        private const val STEER_ENCODER_PID_MIN = 0.0
-        private const val STEER_ENCODER_PID_MAX = 1.0
         private const val DRIVE_INVERTED = true
         private const val STEER_INVERTED = true
-        private const val STEER_ENCODER_INVERTED = true
-        private const val DRIVE_CURRENT_LIMIT = 50
-        private const val STEER_CURRENT_LIMIT = 20
-        private const val NOMINAL_VOLTAGE = 10.0
+        private const val DRIVE_CURRENT_LIMIT = 50.0
+        private const val STEER_CURRENT_LIMIT = 20.0
         private val WHEEL_DIAMETER = Inches.of(3.85)
         private const val DRIVE_GEAR_RATIO = 5.3571
         private val DRIVE_ENCODER_CONVERSION_FACTOR: Measure<Distance> =
