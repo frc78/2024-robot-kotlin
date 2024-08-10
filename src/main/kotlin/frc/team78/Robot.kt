@@ -49,7 +49,6 @@ import frc.team78.subsystems.wrist.Wrist
 import java.util.*
 import kotlin.jvm.optionals.getOrNull
 import kotlin.math.PI
-import org.littletonrobotics.urcl.URCL
 
 object Robot : TimedRobot() {
     private var autonomousCommand: Command? = null
@@ -131,24 +130,6 @@ object Robot : TimedRobot() {
         if (isReal()) {
             DataLogManager.start()
             PowerDistribution(1, PowerDistribution.ModuleType.kRev)
-            URCL.start(
-                mapOf(
-                    1 to "Front Left Drive",
-                    2 to "Front Left Steer",
-                    3 to "Front Right Drive",
-                    4 to "Front Right Steer",
-                    5 to "Back Left Drive",
-                    6 to "Back Left Steer",
-                    7 to "Back Right Drive",
-                    8 to "Back Right Steer",
-                    9 to "Intake Bottom",
-                    10 to "Intake Top",
-                    11 to "Elevator Left",
-                    12 to "Elevator Right",
-                    13 to "Wrist"
-                )
-            )
-
             SignalLogger.setPath("/U/ctre-logs")
             SignalLogger.start()
         }
