@@ -1,9 +1,8 @@
 package frc.team78.subsystems.intake
 
-import com.revrobotics.CANSparkLowLevel.MotorType.kBrushless
-import com.revrobotics.CANSparkMax
+import com.ctre.phoenix6.hardware.TalonFX
+import com.ctre.phoenix6.signals.NeutralModeValue
 import edu.wpi.first.wpilibj2.command.SubsystemBase
-import frc.team78.lib.setStatusRates
 
 object Intake : SubsystemBase() {
 
@@ -12,16 +11,15 @@ object Intake : SubsystemBase() {
     private const val INTAKE_SPEED = 0.75
 
     private val leaderMotor =
-        CANSparkMax(LEADER_CAN_ID, kBrushless).apply {
-            restoreFactoryDefaults()
-            setStatusRates(20, 20)
+        TalonFX(LEADER_CAN_ID).apply {
+            setNeutralMode(NeutralModeValue.Coast)
+            optimizeBusUtilization()
         }
 
     init {
-        CANSparkMax(FOLLOWER_CAN_ID, kBrushless).apply {
-            restoreFactoryDefaults()
-            follow(leaderMotor)
-            setStatusRates(500, 20)
+        TalonFX(FOLLOWER_CAN_ID).apply {
+            setNeutralMode(NeutralModeValue.Coast)
+            optimizeBusUtilization()
         }
     }
 
