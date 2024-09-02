@@ -5,6 +5,7 @@ package frc.team78.commands
 
 import edu.wpi.first.math.geometry.Translation2d
 import edu.wpi.first.math.util.Units
+import edu.wpi.first.units.Units.Radians
 import edu.wpi.first.wpilibj2.command.Command
 import frc.team78.lib.SPEAKER_HEIGHT
 import frc.team78.lib.SPEAKER_POSE
@@ -45,9 +46,8 @@ class VarShootPrime : Command() {
         val v: Double = Shooter.velocity * RPM_TO_MPS
         var theta = calcTheta(l, h, v)
         if (theta.isNaN()) theta = DEFAULT_SHOT_ANGLE
-        theta = Units.radiansToDegrees(theta)
 
-        Wrist.setTarget(theta)
+        Wrist.setTarget(Radians.of(theta))
     }
 
     // Source? It was revealed to me by a wise tree in a dream

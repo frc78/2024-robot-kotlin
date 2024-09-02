@@ -6,9 +6,14 @@ import com.ctre.phoenix6.configs.TalonFXConfiguration
 import com.ctre.phoenix6.controls.PositionVoltage
 import com.ctre.phoenix6.hardware.TalonFX
 import com.ctre.phoenix6.signals.GravityTypeValue
+import com.ctre.phoenix6.signals.InvertedValue
 import com.ctre.phoenix6.signals.NeutralModeValue
 import com.reduxrobotics.sensors.canandmag.Canandmag
 import edu.wpi.first.networktables.NetworkTableInstance
+import edu.wpi.first.units.Angle
+import edu.wpi.first.units.Measure
+import edu.wpi.first.units.Units.Degrees
+import edu.wpi.first.units.Units.Rotations
 import edu.wpi.first.units.Units.Volts
 import edu.wpi.first.wpilibj.smartdashboard.SmartDashboard
 import edu.wpi.first.wpilibj2.command.Command
@@ -27,10 +32,10 @@ object Wrist : SubsystemBase("Wrist") {
 
     private const val MOTOR_CAN_ID = 13
     private const val K_P = 500.0
-    private const val FORWARD_SOFT_LIMIT = 55.0
-    private const val REVERSE_SOFT_LIMIT = 5.0
-    private const val STOW_ANGLE = 55.0
-    private const val AMP_ANGLE = 20.0
+    private val FORWARD_SOFT_LIMIT = Degrees.of(55.0)
+    private val REVERSE_SOFT_LIMIT = Degrees.of(5.0)
+    private val STOW_ANGLE = Degrees.of(55.0)
+    private val AMP_ANGLE = Degrees.of(20.0)
 
     private val positionNtPub =
         NetworkTableInstance.getDefault().getTable("wrist").getDoubleTopic("position").publish()
@@ -45,10 +50,11 @@ object Wrist : SubsystemBase("Wrist") {
             // Times 360 to convert to degrees
             this.Feedback.SensorToMechanismRatio = 375.0
 
-            this.SoftwareLimitSwitch.ForwardSoftLimitThreshold = FORWARD_SOFT_LIMIT
+            this.SoftwareLimitSwitch.ForwardSoftLimitThreshold = FORWARD_SOFT_LIMIT.`in`(Rotations)
             this.SoftwareLimitSwitch.ForwardSoftLimitEnable = true
-            this.SoftwareLimitSwitch.ReverseSoftLimitThreshold = REVERSE_SOFT_LIMIT
+            this.SoftwareLimitSwitch.ReverseSoftLimitThreshold = REVERSE_SOFT_LIMIT.`in`(Rotations)
             this.SoftwareLimitSwitch.ReverseSoftLimitEnable = true
+            MotorOutput.Inverted = InvertedValue.CounterClockwise_Positive
         }
     private val absEncoder = Canandmag(1)
 
@@ -64,11 +70,12 @@ object Wrist : SubsystemBase("Wrist") {
             this.optimizeBusUtilization()
         }
 
-    private val control = PositionVoltage(STOW_ANGLE)
+    private val control = PositionVoltage(STOW_ANGLE.`in`(Rotations))
 
-    fun setTarget(target: Double): StatusCode = motor.setControl(control.withPosition(target))
+    fun setTarget(target: Measure<Angle>): StatusCode =
+        motor.setControl(control.withPosition(target.`in`(Rotations)))
 
-    private fun setTargetCommand(target: Double) =
+    private fun setTargetCommand(target: Measure<Angle>) =
         runOnce { setTarget(target) }.withName("setTarget($target)")
 
     val position: Double
