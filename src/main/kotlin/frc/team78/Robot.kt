@@ -152,7 +152,6 @@ object Robot : TimedRobot() {
 
         if (isReal()) {
             DataLogManager.start()
-            PowerDistribution(1, PowerDistribution.ModuleType.kRev)
             SignalLogger.setPath("/U/ctre-logs")
         }
 
