@@ -5,7 +5,6 @@ import edu.wpi.first.apriltag.AprilTagFieldLayout
 import edu.wpi.first.apriltag.AprilTagFields
 import edu.wpi.first.math.VecBuilder
 import edu.wpi.first.math.Vector
-import edu.wpi.first.math.estimator.SwerveDrivePoseEstimator
 import edu.wpi.first.math.geometry.Pose2d
 import edu.wpi.first.math.geometry.Pose3d
 import edu.wpi.first.math.geometry.Rotation2d
@@ -32,8 +31,6 @@ object PoseEstimator {
         }
     private val imu = Pigeon2(0)
 
-    private val ODOMETRY_STD_DEVS = VecBuilder.fill(0.1, 0.1, 0.1)
-    private val VISION_STD_DEVS = VecBuilder.fill(1.0, 1.0, 1.5)
     private val SINGLE_TAG_STD_DEVS = VecBuilder.fill(4.0, 4.0, 8.0)
     private val MULTI_TAG_STD_DEVS = VecBuilder.fill(0.5, 0.5, 1.0)
 
@@ -93,17 +90,6 @@ object PoseEstimator {
         )
 
     private val gyroPub = ntTable.getStructTopic("Gyro", Rotation2d.struct).publish()
-    private val poseEstimatePub = ntTable.getStructTopic("Chassis Pose", Pose2d.struct).publish()
-
-    private val swerveDrivePoseEstimator =
-        SwerveDrivePoseEstimator(
-            Chassis.kinematics,
-            imu.rotation2d,
-            Chassis.positions,
-            Pose2d(),
-            ODOMETRY_STD_DEVS,
-            VISION_STD_DEVS,
-        )
 
     fun update() {
         visionPoseEstimators.forEachIndexed { i, it ->
@@ -111,26 +97,14 @@ object PoseEstimator {
                 val pose = it.estimatedPose.toPose2d()
 
                 val standardDeviations = getEstimatedStandardDeviations(pose, it.targetsUsed)
-                swerveDrivePoseEstimator.addVisionMeasurement(
-                    pose,
-                    it.timestampSeconds,
-                    standardDeviations,
-                )
+                SwerveDrive.addVisionMeasurement(pose, it.timestampSeconds, standardDeviations)
 
                 ntPublishers[i].set(pose)
             }
         }
 
-        swerveDrivePoseEstimator.update(imu.rotation2d, Chassis.positions)
-        poseEstimatePub.set(swerveDrivePoseEstimator.estimatedPosition)
         gyroPub.set(imu.rotation2d)
     }
-
-    val pose: Pose2d
-        get() = swerveDrivePoseEstimator.estimatedPosition
-
-    fun resetPose(pose: Pose2d) =
-        swerveDrivePoseEstimator.resetPosition(imu.rotation2d, Chassis.positions, pose)
 
     private fun getEstimatedStandardDeviations(
         pose: Pose2d,

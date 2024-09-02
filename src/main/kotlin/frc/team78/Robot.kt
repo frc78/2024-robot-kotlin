@@ -4,16 +4,14 @@
 package frc.team78
 
 import com.ctre.phoenix6.SignalLogger
+import com.ctre.phoenix6.mechanisms.swerve.SwerveRequest
 import com.pathplanner.lib.auto.AutoBuilder
 import com.pathplanner.lib.auto.NamedCommands
 import com.pathplanner.lib.controllers.PPHolonomicDriveController
-import com.pathplanner.lib.util.PIDConstants
 import edu.wpi.first.math.geometry.Rotation2d
 import edu.wpi.first.math.geometry.Translation2d
-import edu.wpi.first.math.kinematics.ChassisSpeeds
-import edu.wpi.first.math.trajectory.TrapezoidProfile
 import edu.wpi.first.net.PortForwarder
-import edu.wpi.first.units.Units.Degrees
+import edu.wpi.first.units.Units.*
 import edu.wpi.first.wpilibj.DataLogManager
 import edu.wpi.first.wpilibj.DriverStation
 import edu.wpi.first.wpilibj.GenericHID.RumbleType
@@ -29,17 +27,8 @@ import edu.wpi.first.wpilibj2.command.button.RobotModeTriggers
 import edu.wpi.first.wpilibj2.command.button.Trigger
 import frc.team78.commands.VarFeedPrime
 import frc.team78.commands.VarShootPrime
-import frc.team78.lib.MotionLimits
-import frc.team78.lib.SPEAKER_POSE
-import frc.team78.lib.metersPerSecond
-import frc.team78.lib.metersPerSecondPerSecond
-import frc.team78.lib.radiansPerSecond
-import frc.team78.lib.radiansPerSecondPerSecond
-import frc.team78.subsystems.chassis.BaseSwerveDrive
-import frc.team78.subsystems.chassis.Chassis
-import frc.team78.subsystems.chassis.FieldOrientedDrive
-import frc.team78.subsystems.chassis.FieldOrientedWithCardinal
-import frc.team78.subsystems.chassis.PoseEstimator
+import frc.team78.lib.*
+import frc.team78.subsystems.chassis.*
 import frc.team78.subsystems.elevator.Elevator
 import frc.team78.subsystems.feedback.LED
 import frc.team78.subsystems.feeder.Feeder
@@ -48,7 +37,6 @@ import frc.team78.subsystems.shooter.Shooter
 import frc.team78.subsystems.wrist.Wrist
 import java.util.*
 import kotlin.jvm.optionals.getOrNull
-import kotlin.math.PI
 
 object Robot : TimedRobot() {
     private var autonomousCommand: Command? = null
@@ -57,29 +45,62 @@ object Robot : TimedRobot() {
         CommandXboxController(0).apply {
             rightBumper()
                 .whileTrue(
-                    intakeNote().deadlineWith(Chassis.autoAlignToNote()).withName("Auto Note Align")
+                    intakeNote()
+                        .deadlineWith(SwerveDrive.autoAlignToNote())
+                        .withName("Auto Note Align")
                 )
 
-            val baseDrive = BaseSwerveDrive(hid, Constants.MOTION_LIMITS)
-            Chassis.defaultCommand = FieldOrientedDrive(baseDrive::chassisSpeeds)
+            SwerveDrive.defaultCommand =
+                SwerveDrive.applyRequest {
+                        SwerveDrive.driveRequest.apply {
+                            VelocityX =
+                                -leftY *
+                                    SwerveDrive.MOTION_LIMITS.maxTranslationVelocity.`in`(
+                                        MetersPerSecond
+                                    )
+                            VelocityY =
+                                -leftX *
+                                    SwerveDrive.MOTION_LIMITS.maxTranslationVelocity.`in`(
+                                        MetersPerSecond
+                                    )
+                            RotationalRate =
+                                -rightX *
+                                    SwerveDrive.MOTION_LIMITS.maxAngularVelocity.`in`(
+                                        RadiansPerSecond
+                                    )
+                        }
+                    }
+                    .withName("Drive Field Centric")
+
             rightBumper()
                 .whileTrue(
                     intakeNote()
-                        .deadlineWith(Chassis.autoAlignToNote())
+                        .deadlineWith(SwerveDrive.autoAlignToNote())
                         .withName("Auto Pickup Note")
                 )
             leftBumper()
                 .whileTrue(
-                    FieldOrientedWithCardinal(
-                        { (SPEAKER_POSE - PoseEstimator.pose.translation).angle.radians + PI },
-                        baseDrive::chassisSpeeds,
-                        Constants.ROTATION_PID,
-                        Constants.ROTATION_CONSTRAINTS,
-                        Degrees.zero(),
-                    )
+                    SwerveDrive.applyRequest {
+                        SwerveDrive.driveAtAngleRequest.apply {
+                            VelocityX =
+                                -leftY *
+                                    SwerveDrive.MOTION_LIMITS.maxTranslationVelocity.`in`(
+                                        MetersPerSecond
+                                    )
+                            VelocityY =
+                                -leftX *
+                                    SwerveDrive.MOTION_LIMITS.maxTranslationVelocity.`in`(
+                                        MetersPerSecond
+                                    )
+                            TargetDirection =
+                                (SPEAKER_POSE - SwerveDrive.estimatedPose.translation)
+                                    .angle
+                                    .rotateBy(Rotation2d.fromRadians(Math.PI))
+                        }
+                    }
                 )
 
-            povDown().whileTrue(Chassis.lockWheels())
+            povDown().whileTrue(SwerveDrive.applyRequest { SwerveRequest.SwerveDriveBrake() })
         }
 
     private val operator =
@@ -104,9 +125,11 @@ object Robot : TimedRobot() {
     init {
         CommandXboxController(5).apply {
             a().whileTrue(Shooter.runSysId())
-            b().whileTrue(Chassis.runSysId())
+            b().whileTrue(SwerveDrive.translationSysId())
             x().whileTrue(Elevator.runSysId())
             y().whileTrue(Wrist.runSysId())
+            leftBumper().whileTrue(SwerveDrive.rotationSysId())
+            rightBumper().whileTrue(SwerveDrive.steerSysId())
         }
     }
 
@@ -155,8 +178,7 @@ object Robot : TimedRobot() {
             .and { DriverStation.isDSAttached() }
             .onTrue(LED.indicateDisabled())
 
-        RobotModeTriggers.teleop()
-            .onTrue(Elevator.brake().alongWith(Wrist.brake(), Chassis.brake()))
+        RobotModeTriggers.teleop().onTrue(Elevator.brake().alongWith(Wrist.brake()))
 
         RobotModeTriggers.disabled()
             .and { !DriverStation.isFMSAttached() }
@@ -176,7 +198,7 @@ object Robot : TimedRobot() {
                 Optional.empty()
             } else {
                 val angle =
-                    (SPEAKER_POSE - PoseEstimator.pose.translation).angle +
+                    (SPEAKER_POSE - SwerveDrive.estimatedPose.translation).angle +
                         Rotation2d.fromDegrees(180.0)
                 Optional.of(angle)
             }
@@ -189,21 +211,23 @@ object Robot : TimedRobot() {
                 "Score" to Commands.waitUntil { Shooter.isAtSpeed }.andThen(Feeder.shoot()),
                 "stow" to Wrist.stow(),
                 "Target" to
-                    FieldOrientedWithCardinal(
-                        { (SPEAKER_POSE - PoseEstimator.pose.translation).angle.radians + PI },
-                        { ChassisSpeeds(0.0, 0.0, 0.0) },
-                        Constants.ROTATION_PID,
-                        Constants.ROTATION_CONSTRAINTS,
-                        Degrees.of(5.0),
-                    ),
+                    SwerveDrive.applyRequest {
+                        SwerveDrive.driveAtAngleRequest.apply {
+                            VelocityX = 0.0
+                            VelocityY = 0.0
+                            TargetDirection =
+                                (SPEAKER_POSE - SwerveDrive.estimatedPose.translation).angle +
+                                    Rotation2d.fromRadians(Math.PI)
+                        }
+                    },
                 "DriveToNote" to
                     intakeNote()
-                        .deadlineWith(Chassis.autoAlignToNote())
+                        .deadlineWith(SwerveDrive.autoAlignToNote())
                         .until {
                             when (DriverStation.getAlliance().getOrNull()) {
                                 DriverStation.Alliance.Blue ->
-                                    PoseEstimator.pose.translation.x > 8.25
-                                else -> PoseEstimator.pose.translation.x < 8.25
+                                    SwerveDrive.estimatedPose.translation.x > 8.25
+                                else -> SwerveDrive.estimatedPose.translation.x < 8.25
                             }
                         }
                         .withName("Drive to Note"),
@@ -232,20 +256,6 @@ object Robot : TimedRobot() {
     }
 
     object Constants {
-        val MOTION_LIMITS =
-            MotionLimits(
-                5.6.metersPerSecond,
-                12.radiansPerSecond,
-                3.metersPerSecondPerSecond,
-                18.radiansPerSecondPerSecond,
-            )
-        val TRANSLATION_PID = PIDConstants(2.0, 0.0, 0.0)
-        val ROTATION_PID = PIDConstants(4.0, 0.0, 0.085)
-        val ROTATION_CONSTRAINTS =
-            TrapezoidProfile.Constraints(
-                MOTION_LIMITS.maxAngularVelocity,
-                MOTION_LIMITS.maxAngularAcceleration,
-            )
 
         val SHOOTER_POSITION = Translation2d(0.0, 0.56)
     }

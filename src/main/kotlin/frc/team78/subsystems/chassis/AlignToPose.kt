@@ -3,7 +3,6 @@ package frc.team78.subsystems.chassis
 import com.pathplanner.lib.util.PIDConstants
 import edu.wpi.first.math.controller.ProfiledPIDController
 import edu.wpi.first.math.geometry.Pose2d
-import edu.wpi.first.math.kinematics.ChassisSpeeds
 import edu.wpi.first.math.trajectory.TrapezoidProfile
 import edu.wpi.first.wpilibj2.command.Command
 import frc.team78.lib.MotionLimits
@@ -50,33 +49,32 @@ class AlignToPose(
     private var goalPose = goalPoseSupplier()
 
     init {
-        addRequirements(Chassis)
+        addRequirements(SwerveDrive)
     }
 
     override fun initialize() {
         goalPose = goalPoseSupplier()
-        val pose = PoseEstimator.pose
-        val vel = Chassis.kinematics.toChassisSpeeds(*Chassis.states)
+        val pose = SwerveDrive.estimatedPose
+        val vel = SwerveDrive.currentRobotChassisSpeeds
         xController.reset(pose.translation.x, vel.vxMetersPerSecond)
         yController.reset(pose.translation.y, vel.vyMetersPerSecond)
         thetaController.reset(pose.rotation.radians, vel.omegaRadiansPerSecond)
     }
 
     override fun execute() {
-        val currentPose = PoseEstimator.pose
+        val currentPose = SwerveDrive.estimatedPose
 
         val xOutput = xController.calculate(currentPose.translation.x, goalPose.translation.x)
         val yOutput = yController.calculate(currentPose.translation.y, goalPose.translation.y)
         val thetaOutput =
             thetaController.calculate(currentPose.rotation.radians, goalPose.rotation.radians)
 
-        Chassis.drive(
-            ChassisSpeeds.fromFieldRelativeSpeeds(
-                xOutput,
-                yOutput,
-                thetaOutput,
-                currentPose.rotation,
-            )
+        SwerveDrive.setControl(
+            SwerveDrive.driveRequest.apply {
+                VelocityX = xOutput
+                VelocityY = yOutput
+                RotationalRate = thetaOutput
+            }
         )
     }
 

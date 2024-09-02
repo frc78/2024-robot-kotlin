@@ -8,7 +8,7 @@ import edu.wpi.first.math.util.Units.inchesToMeters
 import edu.wpi.first.units.Units.RotationsPerSecond
 import edu.wpi.first.wpilibj2.command.Command
 import frc.team78.lib.PLOP_POSE
-import frc.team78.subsystems.chassis.PoseEstimator
+import frc.team78.subsystems.chassis.SwerveDrive
 import frc.team78.subsystems.elevator.Elevator
 import frc.team78.subsystems.shooter.Shooter
 import frc.team78.subsystems.wrist.Wrist
@@ -33,7 +33,7 @@ class VarFeedPrime(private val shooterXZTrans: Translation2d) : Command() {
     }
 
     override fun execute() {
-        val pose = PoseEstimator.pose
+        val pose = SwerveDrive.estimatedPose
 
         // Distance and height to speaker
         var distanceToTarget = pose.translation.getDistance(plopPose) - shooterXZTrans.x

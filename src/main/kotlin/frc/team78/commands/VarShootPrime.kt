@@ -9,7 +9,7 @@ import edu.wpi.first.wpilibj2.command.Command
 import frc.team78.lib.SPEAKER_HEIGHT
 import frc.team78.lib.SPEAKER_POSE
 import frc.team78.lib.meters
-import frc.team78.subsystems.chassis.PoseEstimator
+import frc.team78.subsystems.chassis.SwerveDrive
 import frc.team78.subsystems.elevator.Elevator
 import frc.team78.subsystems.shooter.Shooter
 import frc.team78.subsystems.wrist.Wrist
@@ -32,7 +32,7 @@ class VarShootPrime : Command() {
     }
 
     override fun execute() {
-        val pose = PoseEstimator.pose
+        val pose = SwerveDrive.estimatedPose
 
         // Distance and height to speaker
         val l = pose.translation.getDistance(speakerTranslation)
