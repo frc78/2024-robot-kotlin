@@ -20,7 +20,7 @@ class FieldOrientedWithCardinal(
     private val speedsSupplier: () -> ChassisSpeeds,
     cardinalPidConstants: PIDConstants,
     constraints: TrapezoidProfile.Constraints,
-    private val threshold: Measure<Angle>
+    private val threshold: Measure<Angle>,
 ) : Command() {
 
     /** Set to 180 when on Red */
@@ -31,7 +31,7 @@ class FieldOrientedWithCardinal(
                 cardinalPidConstants.kP,
                 cardinalPidConstants.kI,
                 cardinalPidConstants.kD,
-                constraints
+                constraints,
             )
             .apply {
                 enableContinuousInput(-Math.PI, Math.PI)
@@ -54,7 +54,7 @@ class FieldOrientedWithCardinal(
             }
         thetaPID.reset(
             PoseEstimator.pose.rotation.radians,
-            Chassis.kinematics.toChassisSpeeds(*Chassis.states).omegaRadiansPerSecond
+            Chassis.kinematics.toChassisSpeeds(*Chassis.states).omegaRadiansPerSecond,
         )
     }
 
@@ -68,7 +68,7 @@ class FieldOrientedWithCardinal(
         Chassis.drive(
             ChassisSpeeds.fromFieldRelativeSpeeds(
                 speeds,
-                PoseEstimator.pose.rotation.plus(allianceOffset)
+                PoseEstimator.pose.rotation.plus(allianceOffset),
             )
         )
     }

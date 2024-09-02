@@ -13,17 +13,15 @@ import edu.wpi.first.wpilibj2.command.Command
 import frc.team78.lib.MotionLimits
 import frc.team78.lib.SPEAKER_POSE
 
-class OrbitalTarget(
-    private val speedsSupplier: () -> ChassisSpeeds,
-    motionLimits: MotionLimits,
-) : Command() {
+class OrbitalTarget(private val speedsSupplier: () -> ChassisSpeeds, motionLimits: MotionLimits) :
+    Command() {
 
     val constraints =
         TrapezoidProfile.Constraints(
             motionLimits.maxTranslationVelocity,
-            motionLimits.maxTranslationAcceleration
+            motionLimits.maxTranslationAcceleration,
         )
-    private var speakerPose: Translation2d? = null
+    private var speakerPose: Translation2d = SPEAKER_POSE
 
     /** Set to 180 when on Red */
     private var allianceOffset: Rotation2d = Rotation2d.fromDegrees(0.0)
@@ -51,7 +49,7 @@ class OrbitalTarget(
         val speeds: ChassisSpeeds =
             ChassisSpeeds.fromFieldRelativeSpeeds(
                 ChassisSpeeds(0.0, 0.0, commandedSpeeds.vxMetersPerSecond / goalPosition.norm),
-                robotPose.rotation.plus(allianceOffset)
+                robotPose.rotation.plus(allianceOffset),
             )
 
         Chassis.drive(speeds, goalPosition)

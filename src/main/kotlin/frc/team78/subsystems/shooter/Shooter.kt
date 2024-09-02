@@ -1,7 +1,7 @@
 package frc.team78.subsystems.shooter
 
 import com.ctre.phoenix6.BaseStatusSignal
-import com.ctre.phoenix6.configs.Slot0Configs
+import com.ctre.phoenix6.SignalLogger
 import com.ctre.phoenix6.configs.TalonFXConfiguration
 import com.ctre.phoenix6.controls.VelocityVoltage
 import com.ctre.phoenix6.controls.VoltageOut
@@ -12,6 +12,7 @@ import edu.wpi.first.units.Measure
 import edu.wpi.first.units.Units
 import edu.wpi.first.units.Units.Volts
 import edu.wpi.first.units.Velocity
+import edu.wpi.first.wpilibj2.command.Command
 import edu.wpi.first.wpilibj2.command.Commands
 import edu.wpi.first.wpilibj2.command.SubsystemBase
 import edu.wpi.first.wpilibj2.command.sysid.SysIdRoutine
@@ -24,21 +25,20 @@ object Shooter : SubsystemBase() {
     private val SHOT_RPM = Units.RPM.of(4000.0)
     private val SLOW_SHOT_RPM = Units.RPM.of(500.0)
 
-    private val velocityControl = VelocityVoltage(0.0, 0.0, true, 0.0, 0, true, false, false)
-
+    private val velocityControl = VelocityVoltage(0.0)
     private val topConfig =
-        Slot0Configs().apply {
-            kS = 0.11599
-            kV = 0.11275
-            kA = 0.018537
-            kP = 0.15045
+        TalonFXConfiguration().apply {
+            Slot0.kS = 0.11599
+            Slot0.kV = 0.11275
+            Slot0.kA = 0.018537
+            Slot0.kP = 0.15045
         }
     private val bottomConfig =
-        Slot0Configs().apply {
-            kS = 0.12435
-            kV = 0.1115
-            kA = 0.018978
-            kP = 0.14965
+        TalonFXConfiguration().apply {
+            Slot0.kS = 0.12435
+            Slot0.kV = 0.1115
+            Slot0.kA = 0.018978
+            Slot0.kP = 0.14965
         }
 
     private val ntTable = NetworkTableInstance.getDefault().getTable("Shooter")
@@ -47,8 +47,7 @@ object Shooter : SubsystemBase() {
     private val slowShot = ntTable.getBooleanTopic("Slow Shot").subscribe(false)
 
     private val topMotor =
-        TalonFX(TOP_CAN_ID).apply {
-            configurator.apply(TalonFXConfiguration())
+        TalonFX(TOP_CAN_ID, "*").apply {
             configurator.apply(topConfig)
             velocity.setUpdateFrequency(50.0)
             statorCurrent.setUpdateFrequency(50.0)
@@ -59,8 +58,7 @@ object Shooter : SubsystemBase() {
     private val topVelocity = topMotor.velocity
 
     private val bottomMotor =
-        TalonFX(BOTTOM_CAN_ID).apply {
-            configurator.apply(TalonFXConfiguration())
+        TalonFX(BOTTOM_CAN_ID, "*").apply {
             configurator.apply(bottomConfig)
             velocity.setUpdateFrequency(50.0)
             closedLoopError.setUpdateFrequency(50.0)
@@ -81,9 +79,9 @@ object Shooter : SubsystemBase() {
         bottomMotor.setControl(velocityControl)
     }
 
-    fun spinUp() = runOnce { setSpeed(SHOT_RPM) }.withName("Spin Up")
+    fun spinUp(): Command = runOnce { setSpeed(SHOT_RPM) }.withName("Spin Up")
 
-    fun stop() = runOnce { setSpeed(Units.RotationsPerSecond.of(0.0)) }.withName("Stop")
+    fun stop(): Command = runOnce { setSpeed(Units.RotationsPerSecond.of(0.0)) }.withName("Stop")
 
     val isAtSpeed: Boolean
         get() {
@@ -104,7 +102,9 @@ object Shooter : SubsystemBase() {
     private val sysIdVoltage = VoltageOut(0.0, true, true, false, false)
     private val sysIdRoutine =
         SysIdRoutine(
-            SysIdRoutine.Config(),
+            SysIdRoutine.Config(null, null, null) {
+                SignalLogger.writeString("state", it.toString())
+            },
             SysIdRoutine.Mechanism(
                 { voltage ->
                     sysIdVoltage.Output = voltage.`in`(Volts)
@@ -113,17 +113,18 @@ object Shooter : SubsystemBase() {
                 },
                 null,
                 this,
-                "shooter"
-            )
+                "shooter",
+            ),
         )
 
-    fun runSysId() =
+    fun runSysId(): Command =
         Commands.sequence(
                 runOnce {
-                    topMotor.motorVoltage.setUpdateFrequency(50.0)
-                    topMotor.position.setUpdateFrequency(50.0)
-                    bottomMotor.motorVoltage.setUpdateFrequency(50.0)
-                    bottomMotor.position.setUpdateFrequency(50.0)
+                    SignalLogger.start()
+                    topMotor.motorVoltage.setUpdateFrequency(100.0)
+                    topMotor.position.setUpdateFrequency(100.0)
+                    bottomMotor.motorVoltage.setUpdateFrequency(100.0)
+                    bottomMotor.position.setUpdateFrequency(100.0)
                 },
                 Commands.waitSeconds(1.0),
                 sysIdRoutine.dynamic(SysIdRoutine.Direction.kForward),
@@ -134,11 +135,12 @@ object Shooter : SubsystemBase() {
                 Commands.waitSeconds(1.0),
                 sysIdRoutine.quasistatic(SysIdRoutine.Direction.kReverse),
                 runOnce {
+                    SignalLogger.stop()
                     topMotor.motorVoltage.setUpdateFrequency(0.0)
                     topMotor.position.setUpdateFrequency(0.0)
                     bottomMotor.motorVoltage.setUpdateFrequency(0.0)
                     bottomMotor.position.setUpdateFrequency(0.0)
-                }
+                },
             )
-            .withName("shooter SysId")
+            .withName("Shooter SysId")
 }

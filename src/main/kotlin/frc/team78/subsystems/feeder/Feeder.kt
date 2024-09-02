@@ -1,10 +1,13 @@
 package frc.team78.subsystems.feeder
 
 import com.ctre.phoenix6.configs.HardwareLimitSwitchConfigs
+import com.ctre.phoenix6.controls.DutyCycleOut
 import com.ctre.phoenix6.hardware.TalonFX
 import com.ctre.phoenix6.signals.ForwardLimitValue
 import edu.wpi.first.networktables.NetworkTableInstance
 import edu.wpi.first.wpilibj.smartdashboard.SmartDashboard
+import edu.wpi.first.wpilibj2.command.Command
+import edu.wpi.first.wpilibj2.command.Commands.idle
 import edu.wpi.first.wpilibj2.command.FunctionalCommand
 import edu.wpi.first.wpilibj2.command.SubsystemBase
 
@@ -12,10 +15,15 @@ object Feeder : SubsystemBase() {
 
     private const val MOTOR_CAN_ID = 16
     private val feedMotor =
-        TalonFX(MOTOR_CAN_ID).apply {
+        TalonFX(MOTOR_CAN_ID, "*").apply {
             forwardLimit.setUpdateFrequency(50.0)
             optimizeBusUtilization()
         }
+
+    private val ejectControl = DutyCycleOut(-.85)
+    private val intakeControl = DutyCycleOut(0.85)
+    private val shootControl = DutyCycleOut(1.0)
+    private val stopControl = DutyCycleOut(0.0)
 
     private val INTAKE_CONFIG = HardwareLimitSwitchConfigs().withForwardLimitEnable(true)
     private val SHOOT_CONFIG = HardwareLimitSwitchConfigs().withForwardLimitEnable(false)
@@ -25,37 +33,35 @@ object Feeder : SubsystemBase() {
 
     init {
         SmartDashboard.putData(this)
+
+        defaultCommand =
+            runOnce { feedMotor.setControl(stopControl) }.andThen(idle()).withName("stop")
     }
 
-    fun intake() =
+    fun intake(): Command =
         FunctionalCommand(
                 {
-                    feedMotor.configurator.apply(INTAKE_CONFIG, 0.01)
-                    feedMotor.set(0.85)
+                    feedMotor.configurator.apply(INTAKE_CONFIG, 0.1)
+                    feedMotor.setControl(intakeControl)
                 },
                 {},
-                {
-                    feedMotor.set(0.0)
-                    feedMotor.configurator.apply(SHOOT_CONFIG, 0.01)
-                },
+                { feedMotor.configurator.apply(SHOOT_CONFIG, .1) },
                 { feedMotor.forwardLimit.value == ForwardLimitValue.ClosedToGround },
-                this
+                this,
             )
             .withName("Intake")
 
-    fun eject() = startEnd({ feedMotor.set(-0.85) }, { feedMotor.set(0.0) }).withName("Outtake")
+    fun eject(): Command =
+        runOnce { feedMotor.setControl(ejectControl) }.andThen(idle()).withName("Eject")
 
-    fun shoot() =
+    fun shoot(): Command =
         FunctionalCommand(
                 {
                     feedMotor.configurator.apply(SHOOT_CONFIG, 0.01)
-                    feedMotor.set(1.0)
+                    feedMotor.setControl(shootControl)
                 },
                 {},
-                {
-                    feedMotor.set(0.0)
-                    feedMotor.configurator.apply(INTAKE_CONFIG, 0.01)
-                },
+                { feedMotor.configurator.apply(INTAKE_CONFIG, 0.01) },
                 { feedMotor.forwardLimit.value == ForwardLimitValue.Open },
                 this,
             )

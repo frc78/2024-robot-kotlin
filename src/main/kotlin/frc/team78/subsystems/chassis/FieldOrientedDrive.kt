@@ -37,7 +37,7 @@ class FieldOrientedDrive(private val speeds: () -> ChassisSpeeds) : Command() {
         val chassisSpeeds =
             ChassisSpeeds.fromFieldRelativeSpeeds(
                 speeds(),
-                PoseEstimator.pose.rotation.plus(allianceOffset)
+                PoseEstimator.pose.rotation.plus(allianceOffset),
             )
         Chassis.drive(chassisSpeeds)
     }

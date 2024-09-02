@@ -9,7 +9,6 @@ import com.ctre.phoenix6.hardware.TalonFX
 import com.ctre.phoenix6.signals.FeedbackSensorSourceValue
 import com.ctre.phoenix6.signals.NeutralModeValue
 import com.ctre.phoenix6.signals.SensorDirectionValue
-import com.pathplanner.lib.commands.PathfindingCommand
 import edu.wpi.first.math.geometry.Rotation2d
 import edu.wpi.first.math.kinematics.SwerveModulePosition
 import edu.wpi.first.math.kinematics.SwerveModuleState
@@ -40,7 +39,7 @@ class SwerveModule(driveCanId: Int, steerCanId: Int, driveOpenLoopParameters: Op
             CurrentLimits.StatorCurrentLimitEnable = true
         }
     private val driveMotor =
-        TalonFX(driveCanId).apply {
+        TalonFX(driveCanId, "*").apply {
             setNeutralMode(NeutralModeValue.Brake)
             inverted = DRIVE_INVERTED
             configurator.apply(driveConfiguration)
@@ -50,17 +49,7 @@ class SwerveModule(driveCanId: Int, steerCanId: Int, driveOpenLoopParameters: Op
             optimizeBusUtilization()
         }
 
-    private val driveControl =
-        VelocityVoltage(
-            0.0,
-            0.0,
-            true,
-            0.0,
-            0,
-            false,
-            false,
-            false,
-        )
+    private val driveControl = VelocityVoltage(0.0, 0.0, true, 0.0, 0, false, false, false)
 
     private val encoderConfigs =
         CANcoderConfiguration().apply {
@@ -85,7 +74,7 @@ class SwerveModule(driveCanId: Int, steerCanId: Int, driveOpenLoopParameters: Op
             CurrentLimits.StatorCurrentLimitEnable = true
         }
     private val steerMotor =
-        TalonFX(steerCanId).apply {
+        TalonFX(steerCanId, "*").apply {
             setNeutralMode(NeutralModeValue.Brake)
             inverted = STEER_INVERTED
             configurator.apply(steerConfiguration)
@@ -95,17 +84,7 @@ class SwerveModule(driveCanId: Int, steerCanId: Int, driveOpenLoopParameters: Op
             optimizeBusUtilization()
         }
 
-    private val steerControl =
-        PositionVoltage(
-            0.0,
-            0.0,
-            true,
-            0.0,
-            0,
-            false,
-            false,
-            false,
-        )
+    private val steerControl = PositionVoltage(0.0, 0.0, true, 0.0, 0, false, false, false)
 
     fun enableBrakeMode() {
         driveMotor.setNeutralMode(NeutralModeValue.Brake)
@@ -123,7 +102,7 @@ class SwerveModule(driveCanId: Int, steerCanId: Int, driveOpenLoopParameters: Op
     private val drivePosition
         get() = driveMotor.position.value
 
-    val steerPosition
+    private val steerPosition: Rotation2d
         get() = Rotation2d.fromRotations(steerMotor.position.value)
 
     val swerveModuleState
@@ -138,8 +117,6 @@ class SwerveModule(driveCanId: Int, steerCanId: Int, driveOpenLoopParameters: Op
         val angleDelta = optimizedState.angle - steerPosition
         val speedScalar = abs(angleDelta.cos)
         optimizedState.speedMetersPerSecond *= speedScalar
-
-        PathfindingCommand.warmupCommand().schedule()
 
         driveMotor.setControl(driveControl.withVelocity(state.speedMetersPerSecond))
 

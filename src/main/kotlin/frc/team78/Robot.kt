@@ -75,7 +75,7 @@ object Robot : TimedRobot() {
                         baseDrive::chassisSpeeds,
                         Constants.ROTATION_PID,
                         Constants.ROTATION_CONSTRAINTS,
-                        Degrees.zero()
+                        Degrees.zero(),
                     )
                 )
 
@@ -131,7 +131,6 @@ object Robot : TimedRobot() {
             DataLogManager.start()
             PowerDistribution(1, PowerDistribution.ModuleType.kRev)
             SignalLogger.setPath("/U/ctre-logs")
-            SignalLogger.start()
         }
 
         Trigger(Feeder::hasNote)
@@ -195,7 +194,7 @@ object Robot : TimedRobot() {
                         { ChassisSpeeds(0.0, 0.0, 0.0) },
                         Constants.ROTATION_PID,
                         Constants.ROTATION_CONSTRAINTS,
-                        Degrees.of(5.0)
+                        Degrees.of(5.0),
                     ),
                 "DriveToNote" to
                     intakeNote()
@@ -238,23 +237,20 @@ object Robot : TimedRobot() {
                 5.6.metersPerSecond,
                 12.radiansPerSecond,
                 3.metersPerSecondPerSecond,
-                18.radiansPerSecondPerSecond
+                18.radiansPerSecondPerSecond,
             )
         val TRANSLATION_PID = PIDConstants(2.0, 0.0, 0.0)
         val ROTATION_PID = PIDConstants(4.0, 0.0, 0.085)
         val ROTATION_CONSTRAINTS =
             TrapezoidProfile.Constraints(
                 MOTION_LIMITS.maxAngularVelocity,
-                MOTION_LIMITS.maxAngularAcceleration
+                MOTION_LIMITS.maxAngularAcceleration,
             )
 
         val SHOOTER_POSITION = Translation2d(0.0, 0.56)
     }
 
     private fun CommandXboxController.shortRumble(type: RumbleType) =
-        Commands.startEnd(
-                { hid.setRumble(type, 1.0) },
-                { hid.setRumble(type, 0.0) },
-            )
+        Commands.startEnd({ hid.setRumble(type, 1.0) }, { hid.setRumble(type, 0.0) })
             .withTimeout(0.3)
 }

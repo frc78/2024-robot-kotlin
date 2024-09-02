@@ -12,7 +12,7 @@ class AlignToPose(
     private val goalPoseSupplier: () -> Pose2d,
     translationPID: PIDConstants,
     thetaPID: PIDConstants,
-    motionLimits: MotionLimits
+    motionLimits: MotionLimits,
 ) : Command() {
 
     private val xController =
@@ -22,8 +22,8 @@ class AlignToPose(
             translationPID.kD,
             TrapezoidProfile.Constraints(
                 motionLimits.maxTranslationVelocity,
-                motionLimits.maxTranslationAcceleration
-            )
+                motionLimits.maxTranslationAcceleration,
+            ),
         )
     private val yController =
         ProfiledPIDController(
@@ -32,8 +32,8 @@ class AlignToPose(
             translationPID.kD,
             TrapezoidProfile.Constraints(
                 motionLimits.maxTranslationVelocity,
-                motionLimits.maxTranslationAcceleration
-            )
+                motionLimits.maxTranslationAcceleration,
+            ),
         )
     private val thetaController =
         ProfiledPIDController(
@@ -42,8 +42,8 @@ class AlignToPose(
                 thetaPID.kD,
                 TrapezoidProfile.Constraints(
                     motionLimits.maxAngularVelocity,
-                    motionLimits.maxAngularAcceleration
-                )
+                    motionLimits.maxAngularAcceleration,
+                ),
             )
             .apply { setTolerance(3.0) }
 
@@ -75,7 +75,7 @@ class AlignToPose(
                 xOutput,
                 yOutput,
                 thetaOutput,
-                currentPose.rotation
+                currentPose.rotation,
             )
         )
     }

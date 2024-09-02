@@ -19,6 +19,7 @@ import edu.wpi.first.units.Units.Volts
 import edu.wpi.first.wpilibj.DriverStation
 import edu.wpi.first.wpilibj.DriverStation.Alliance
 import edu.wpi.first.wpilibj.smartdashboard.SmartDashboard
+import edu.wpi.first.wpilibj2.command.Command
 import edu.wpi.first.wpilibj2.command.Commands
 import edu.wpi.first.wpilibj2.command.Commands.idle
 import edu.wpi.first.wpilibj2.command.FunctionalCommand
@@ -38,7 +39,6 @@ object Chassis : SubsystemBase() {
     init {
         SmartDashboard.putData(this)
         SmartDashboard.putData(brake())
-        SmartDashboard.putData(coast())
     }
 
     private const val FRONT_LEFT_DRIVE_ID = 1
@@ -58,6 +58,37 @@ object Chassis : SubsystemBase() {
     private val WHEELBASE = Inches.of(16.75)
     private val TRACK = Inches.of(16.75)
 
+    private val MODULE_TRANSLATIONS =
+        arrayOf(
+            Translation2d(WHEELBASE / 2, TRACK / 2),
+            Translation2d(WHEELBASE / 2, -TRACK / 2),
+            Translation2d(-WHEELBASE / 2, TRACK / 2),
+            Translation2d(-WHEELBASE / 2, -TRACK / 2),
+        )
+
+    private val swerveModules =
+        arrayOf(
+            SwerveModule(FRONT_LEFT_DRIVE_ID, FRONT_LEFT_STEER_ID, FRONT_LEFT_OPEN_LOOP_PARAMETERS),
+            SwerveModule(
+                FRONT_RIGHT_DRIVE_ID,
+                FRONT_RIGHT_STEER_ID,
+                FRONT_RIGHT_OPEN_LOOP_PARAMETERS,
+            ),
+            SwerveModule(BACK_LEFT_DRIVE_ID, BACK_LEFT_STEER_ID, BACK_LEFT_OPEN_LOOP_PARAMETERS),
+            SwerveModule(BACK_RIGHT_DRIVE_ID, BACK_RIGHT_STEER_ID, BACK_RIGHT_OPEN_LOOP_PARAMETERS),
+        )
+
+    val kinematics = SwerveDriveKinematics(*MODULE_TRANSLATIONS)
+
+    private val table = NetworkTableInstance.getDefault().getTable("chassis")
+    private val statePub = table.getStructArrayTopic("states", SwerveModuleState.struct).publish()
+
+    val positions: Array<SwerveModulePosition>
+        get() = swerveModules.map { it.position }.toTypedArray()
+
+    val states: Array<SwerveModuleState>
+        get() = swerveModules.map { it.swerveModuleState }.toTypedArray()
+
     init {
         AutoBuilder.configureHolonomic(
             PoseEstimator::pose,
@@ -76,37 +107,6 @@ object Chassis : SubsystemBase() {
         )
     }
 
-    private val MODULE_TRANSLATIONS =
-        arrayOf(
-            Translation2d(WHEELBASE / 2, TRACK / 2),
-            Translation2d(WHEELBASE / 2, -TRACK / 2),
-            Translation2d(-WHEELBASE / 2, TRACK / 2),
-            Translation2d(-WHEELBASE / 2, -TRACK / 2),
-        )
-
-    private val swerveModules =
-        arrayOf(
-            SwerveModule(FRONT_LEFT_DRIVE_ID, FRONT_LEFT_STEER_ID, FRONT_LEFT_OPEN_LOOP_PARAMETERS),
-            SwerveModule(
-                FRONT_RIGHT_DRIVE_ID,
-                FRONT_RIGHT_STEER_ID,
-                FRONT_RIGHT_OPEN_LOOP_PARAMETERS
-            ),
-            SwerveModule(BACK_LEFT_DRIVE_ID, BACK_LEFT_STEER_ID, BACK_LEFT_OPEN_LOOP_PARAMETERS),
-            SwerveModule(BACK_RIGHT_DRIVE_ID, BACK_RIGHT_STEER_ID, BACK_RIGHT_OPEN_LOOP_PARAMETERS),
-        )
-
-    val kinematics = SwerveDriveKinematics(*MODULE_TRANSLATIONS)
-
-    private val table = NetworkTableInstance.getDefault().getTable("chassis")
-    private val statePub = table.getStructArrayTopic("states", SwerveModuleState.struct).publish()
-
-    val positions: Array<SwerveModulePosition>
-        get() = swerveModules.map { it.position }.toTypedArray()
-
-    val states: Array<SwerveModuleState>
-        get() = swerveModules.map { it.swerveModuleState }.toTypedArray()
-
     /**
      * Drives the robot with the given speeds.
      *
@@ -122,7 +122,7 @@ object Chassis : SubsystemBase() {
     }
 
     /** Command to lock the wheels by orienting them to an X-pattern. */
-    fun lockWheels() =
+    fun lockWheels(): Command =
         runOnce {
                 swerveModules[0].setState(SwerveModuleState(0.0, Rotation2d.fromDegrees(45.0)))
                 swerveModules[1].setState(SwerveModuleState(0.0, Rotation2d.fromDegrees(135.0)))
@@ -143,7 +143,7 @@ object Chassis : SubsystemBase() {
         )
 
     /** Command to run the SysID sequence */
-    fun runSysId() =
+    fun runSysId(): Command =
         Commands.sequence(
             sysIdRoutine.dynamic(SysIdRoutine.Direction.kForward),
             Commands.waitSeconds(1.0),
@@ -155,16 +155,10 @@ object Chassis : SubsystemBase() {
         )
 
     /** Command to enable brake mode on the chassis motors */
-    fun brake() =
+    fun brake(): Command =
         runOnce { swerveModules.forEach { it.enableBrakeMode() } }
             .ignoringDisable(true)
             .withName("Brake Chassis")
-
-    /** Command to enable coast mode on the chassis motors */
-    fun coast() =
-        runOnce { swerveModules.forEach { it.enableCoastMode() } }
-            .ignoringDisable(true)
-            .withName("Coast Chassis")
 
     /** Network table subscriber for the note detection position */
     private val noteDetectionYaw =
@@ -182,13 +176,7 @@ object Chassis : SubsystemBase() {
                 rotationController.setpoint = 0.0
             },
             {
-                drive(
-                    ChassisSpeeds(
-                        2.0,
-                        0.0,
-                        rotationController.calculate(noteDetectionYaw.get()),
-                    )
-                )
+                drive(ChassisSpeeds(2.0, 0.0, rotationController.calculate(noteDetectionYaw.get())))
             },
             {},
             { false },

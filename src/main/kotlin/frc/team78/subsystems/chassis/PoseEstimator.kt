@@ -40,46 +40,22 @@ object PoseEstimator {
     private val STERN_CAM = PhotonCamera("SternCam")
     private val STERN_CAM_POSE =
         Transform3d(
-            Translation3d(
-                -4.5.inches,
-                0.inches,
-                17.902.inches,
-            ),
-            Rotation3d(
-                PI,
-                Math.toRadians(-25.0),
-                Math.toRadians(-30.0),
-            )
+            Translation3d(-4.5.inches, 0.inches, 17.902.inches),
+            Rotation3d(PI, Math.toRadians(-25.0), Math.toRadians(-30.0)),
         )
 
     private val PORT_CAM = PhotonCamera("PortCam")
     private val PORT_CAM_POSE =
         Transform3d(
-            Translation3d(
-                4.465.inches,
-                10.205.inches,
-                21.274.inches,
-            ),
-            Rotation3d(
-                0.0,
-                Math.toRadians(-25.0),
-                Math.toRadians(30.0),
-            )
+            Translation3d(4.465.inches, 10.205.inches, 21.274.inches),
+            Rotation3d(0.0, Math.toRadians(-25.0), Math.toRadians(30.0)),
         )
 
     private val STARBOARD_CAM = PhotonCamera("StarboardCam")
     private val STARBOARD_CAM_POSE =
         Transform3d(
-            Translation3d(
-                4.465.inches,
-                -10.205.inches,
-                21.274.inches,
-            ),
-            Rotation3d(
-                PI,
-                Math.toRadians(-25.0),
-                Math.toRadians(-30.0),
-            )
+            Translation3d(4.465.inches, -10.205.inches, 21.274.inches),
+            Rotation3d(PI, Math.toRadians(-25.0), Math.toRadians(-30.0)),
         )
 
     private val sternCamPoseEstimator =
@@ -106,11 +82,7 @@ object PoseEstimator {
             STARBOARD_CAM_POSE,
         )
     private val visionPoseEstimators =
-        listOf(
-            sternCamPoseEstimator,
-            portCamPoseEstimator,
-            starboardCamPoseEstimator,
-        )
+        listOf(sternCamPoseEstimator, portCamPoseEstimator, starboardCamPoseEstimator)
 
     private val ntTable = NetworkTableInstance.getDefault().getTable("pose_estimator")
     private val ntPublishers =
@@ -142,7 +114,7 @@ object PoseEstimator {
                 swerveDrivePoseEstimator.addVisionMeasurement(
                     pose,
                     it.timestampSeconds,
-                    standardDeviations
+                    standardDeviations,
                 )
 
                 ntPublishers[i].set(pose)
@@ -154,7 +126,7 @@ object PoseEstimator {
         gyroPub.set(imu.rotation2d)
     }
 
-    val pose
+    val pose: Pose2d
         get() = swerveDrivePoseEstimator.estimatedPosition
 
     fun resetPose(pose: Pose2d) =
@@ -162,7 +134,7 @@ object PoseEstimator {
 
     private fun getEstimatedStandardDeviations(
         pose: Pose2d,
-        targetsUsed: List<PhotonTrackedTarget>
+        targetsUsed: List<PhotonTrackedTarget>,
     ): Vector<N3> {
 
         var numTargets: Int

@@ -18,9 +18,7 @@ import kotlin.math.sin
 import kotlin.math.sqrt
 
 /** @param shooterXZTrans Position of the shooter in the XZ plane */
-class VarFeedPrime(
-    private val shooterXZTrans: Translation2d,
-) : Command() {
+class VarFeedPrime(private val shooterXZTrans: Translation2d) : Command() {
 
     private var plopPose = Translation2d()
 

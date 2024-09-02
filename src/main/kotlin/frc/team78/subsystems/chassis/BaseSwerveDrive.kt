@@ -7,7 +7,7 @@ import frc.team78.lib.MotionLimits
 
 class BaseSwerveDrive(
     private val controller: XboxController,
-    private val motionLimits: MotionLimits
+    private val motionLimits: MotionLimits,
 ) {
 
     private fun triggerAdjust(slow: Double, fast: Double) = 0.5 + fast * 0.5 - slow * 0.25

@@ -7,6 +7,7 @@ import com.ctre.phoenix.led.StrobeAnimation
 import edu.wpi.first.wpilibj.DriverStation
 import edu.wpi.first.wpilibj.DriverStation.Alliance
 import edu.wpi.first.wpilibj.util.Color
+import edu.wpi.first.wpilibj2.command.Command
 import edu.wpi.first.wpilibj2.command.Commands.idle
 import edu.wpi.first.wpilibj2.command.SubsystemBase
 
@@ -56,68 +57,29 @@ object LED : SubsystemBase() {
      *
      * This sets the leds to green
      */
-    fun indicateNoteInCartridge() =
-        startEnd(
-            { bracelet.apply { setLEDs(0, 255, 0) } },
-            this::off,
-        )
+    fun indicateNoteInCartridge(): Command =
+        startEnd({ bracelet.apply { setLEDs(0, 255, 0) } }, this::off)
 
     /** Command to run an animation when the robot is disabled */
-    fun indicateDisabled() = runOnce {
+    fun indicateDisabled(): Command = runOnce {
         bracelet.apply {
             animate(
-                ColorFlowAnimation(
-                    0,
-                    0,
-                    255,
-                    0,
-                    0.1,
-                    15,
-                    ColorFlowAnimation.Direction.Forward,
-                    7,
-                )
+                ColorFlowAnimation(0, 0, 255, 0, 0.1, 15, ColorFlowAnimation.Direction.Forward, 7)
             )
             animate(
-                ColorFlowAnimation(
-                    0,
-                    255,
-                    0,
-                    0,
-                    0.1,
-                    15,
-                    ColorFlowAnimation.Direction.Backward,
-                    7,
-                )
+                ColorFlowAnimation(0, 255, 0, 0, 0.1, 15, ColorFlowAnimation.Direction.Backward, 7)
             )
             animate(
-                ColorFlowAnimation(
-                    0,
-                    0,
-                    255,
-                    0,
-                    0.1,
-                    7,
-                    ColorFlowAnimation.Direction.Forward,
-                    0,
-                )
+                ColorFlowAnimation(0, 0, 255, 0, 0.1, 7, ColorFlowAnimation.Direction.Forward, 0)
             )
             animate(
-                ColorFlowAnimation(
-                    0,
-                    255,
-                    0,
-                    0,
-                    0.1,
-                    7,
-                    ColorFlowAnimation.Direction.Backward,
-                    0,
-                )
+                ColorFlowAnimation(0, 255, 0, 0, 0.1, 7, ColorFlowAnimation.Direction.Backward, 0)
             )
         }
     }
 
     /** Command to indicate the shooter is up to speed and ready to fire. Strobes the leds green */
-    fun indicateShooterWheelsAtSpeed() =
+    fun indicateShooterWheelsAtSpeed(): Command =
         startEnd({ bracelet.animate(StrobeAnimation(0, 255, 0, 0, 0.2, 68)) }, this::off)
 
     private fun off() =
