@@ -36,14 +36,14 @@ object TunerConstants {
 
     // The closed-loop output type to use for the steer motors;
     // This affects the PID/FF gains for the steer motors
-    private val steerClosedLoopOutput = ClosedLoopOutputType.Voltage
+    private val STEER_CLOSED_LOOP_OUTPUT = ClosedLoopOutputType.Voltage
     // The closed-loop output type to use for the drive motors;
     // This affects the PID/FF gains for the drive motors
-    private val driveClosedLoopOutput = ClosedLoopOutputType.TorqueCurrentFOC
+    private val DRIVE_CLOSED_LOOP_OUTPUT = ClosedLoopOutputType.TorqueCurrentFOC
 
     // The stator current at which the wheels start to slip;
     // This needs to be tuned to your individual robot
-    private const val kSlipCurrentA = 150.0
+    private const val SLIP_CURRENT_A = 150.0
 
     // Initial configs for the drive and steer motors and the CANcoder; these cannot be null.
     // Some configs will be overwritten; check the `with*InitialConfigs()` API documentation.
@@ -62,141 +62,141 @@ object TunerConstants {
 
     // Theoretical free speed (m/s) at 12v applied output;
     // This needs to be tuned to your individual robot
-    const val kSpeedAt12VoltsMps: Double = 5.21
+    const val SPEED_AT_12_VOLTS_MPS = 5.21
 
     // Every 1 rotation of the azimuth results in kCoupleRatio drive motor turns;
     // This may need to be tuned to your individual robot
 
-    private const val kCoupleRatio = 25.0 / 7
+    private const val COUPLE_RATIO = 25.0 / 7
 
-    private const val kDriveGearRatio = (50.0 * 16 * 45) / (14 * 28 * 15)
-    private const val kSteerGearRatio = 150.0 / 7
-    private const val kWheelRadiusInches = 2.0
+    private const val DRIVE_GEAR_RATIO = (50.0 * 16 * 45) / (14 * 28 * 15)
+    private const val STEER_GEAR_RATIO = 150.0 / 7
+    private const val WHEEL_RADIUS_INCHES = 2.0
 
-    private const val kInvertLeftSide = false
-    private const val kInvertRightSide = true
+    private const val INVERT_LEFT_SIDE = false
+    private const val INVERT_RIGHT_SIDE = true
 
-    private const val kCANbusName = "*"
-    private const val kPigeonId = 0
+    private const val CAN_BUS_NAME = "*"
+    private const val PIGEON_ID = 0
 
     // These are only used for simulation
-    private const val kSteerInertia = 0.00001
-    private const val kDriveInertia = 0.001
+    private const val STEER_INERTIA = 0.00001
+    private const val DRIVE_INERTIA = 0.001
     // Simulated voltage necessary to overcome friction
-    private const val kSteerFrictionVoltage = 0.25
-    private const val kDriveFrictionVoltage = 0.25
+    private const val STEER_FRICTION_VOLTAGE = 0.25
+    private const val DRIVE_FRICTION_VOLTAGE = 0.25
 
     val DrivetrainConstants =
         SwerveDrivetrainConstants().apply {
-            CANbusName = kCANbusName
-            Pigeon2Id = kPigeonId
+            CANbusName = CAN_BUS_NAME
+            Pigeon2Id = PIGEON_ID
             Pigeon2Configs = pigeonConfigs
         }
 
     private val ConstantCreator =
         SwerveModuleConstantsFactory().apply {
-            DriveMotorGearRatio = kDriveGearRatio
-            SteerMotorGearRatio = kSteerGearRatio
-            WheelRadius = kWheelRadiusInches
-            SlipCurrent = kSlipCurrentA
+            DriveMotorGearRatio = DRIVE_GEAR_RATIO
+            SteerMotorGearRatio = STEER_GEAR_RATIO
+            WheelRadius = WHEEL_RADIUS_INCHES
+            SlipCurrent = SLIP_CURRENT_A
             SteerMotorGains = steerGains
             DriveMotorGains = driveGains
-            SteerMotorClosedLoopOutput = steerClosedLoopOutput
-            DriveMotorClosedLoopOutput = driveClosedLoopOutput
-            SpeedAt12VoltsMps = kSpeedAt12VoltsMps
-            SteerInertia = kSteerInertia
-            DriveInertia = kDriveInertia
-            SteerFrictionVoltage = kSteerFrictionVoltage
-            DriveFrictionVoltage = kDriveFrictionVoltage
+            SteerMotorClosedLoopOutput = STEER_CLOSED_LOOP_OUTPUT
+            DriveMotorClosedLoopOutput = DRIVE_CLOSED_LOOP_OUTPUT
+            SpeedAt12VoltsMps = SPEED_AT_12_VOLTS_MPS
+            SteerInertia = STEER_INERTIA
+            DriveInertia = DRIVE_INERTIA
+            SteerFrictionVoltage = STEER_FRICTION_VOLTAGE
+            DriveFrictionVoltage = DRIVE_FRICTION_VOLTAGE
             FeedbackSource = SteerFeedbackType.FusedCANcoder
-            CouplingGearRatio = kCoupleRatio
+            CouplingGearRatio = COUPLE_RATIO
             DriveMotorInitialConfigs = driveInitialConfigs
             SteerMotorInitialConfigs = steerInitialConfigs
             CANcoderInitialConfigs = cancoderInitialConfigs
         }
 
     // Front Left
-    private const val kFrontLeftDriveMotorId = 1
-    private const val kFrontLeftSteerMotorId = 2
-    private const val kFrontLeftEncoderId = 1
-    private const val kFrontLeftEncoderOffset = 0.152099609375
-    private const val kFrontLeftSteerInvert = true
+    private const val FRONT_LEFT_DRIVE_MOTOR_ID = 1
+    private const val FRONT_LEFT_STEER_MOTOR_ID = 2
+    private const val FRONT_LEFT_ENCODER_ID = 1
+    private const val FRONT_LEFT_ENCODER_OFFSET = 0.152099609375
+    private const val FRONT_LEFT_STEER_INVERT = true
 
-    private const val kFrontLeftXPosInches = 8.5
-    private const val kFrontLeftYPosInches = 8.5
+    private const val FRONT_LEFT_X_POS_INCHES = 8.5
+    private const val FRONT_LEFT_Y_POS_INCHES = 8.5
 
     // Front Right
-    private const val kFrontRightDriveMotorId = 3
-    private const val kFrontRightSteerMotorId = 4
-    private const val kFrontRightEncoderId = 2
-    private const val kFrontRightEncoderOffset = -0.387939453125
-    private const val kFrontRightSteerInvert = true
+    private const val FRONT_RIGHT_DRIVE_MOTOR_ID = 3
+    private const val FRONT_RIGHT_STEER_MOTOR_ID = 4
+    private const val FRONT_RIGHT_ENCODER_ID = 2
+    private const val FRONT_RIGHT_ENCODER_OFFSET = -0.387939453125
+    private const val FRONT_RIGHT_STEER_INVERT = true
 
-    private const val kFrontRightXPosInches = 8.5
-    private const val kFrontRightYPosInches = -8.5
+    private const val FRONT_RIGHT_X_POS_INCHES = 8.5
+    private const val FRONT_RIGHT_Y_POS_INCHES = -8.5
 
     // Back Left
-    private const val kBackLeftDriveMotorId = 5
-    private const val kBackLeftSteerMotorId = 6
-    private const val kBackLeftEncoderId = 3
-    private const val kBackLeftEncoderOffset = -0.455322265625
-    private const val kBackLeftSteerInvert = true
+    private const val BACK_LEFT_DRIVE_MOTOR_ID = 5
+    private const val BACK_LEFT_STEER_MOTOR_ID = 6
+    private const val BACK_LEFT_ENCODER_ID = 3
+    private const val BACK_LEFT_ENCODER_OFFSET = -0.455322265625
+    private const val BACK_LEFT_STEER_INVERT = true
 
-    private const val kBackLeftXPosInches = -8.5
-    private const val kBackLeftYPosInches = 8.5
+    private const val BACK_LEFT_X_POS_INCHES = -8.5
+    private const val BACK_LEFT_Y_POS_INCHES = 8.5
 
     // Back Right
-    private const val kBackRightDriveMotorId = 7
-    private const val kBackRightSteerMotorId = 8
-    private const val kBackRightEncoderId = 4
-    private const val kBackRightEncoderOffset = -0.465576171875
-    private const val kBackRightSteerInvert = true
+    private const val BACK_RIGHT_DRIVE_MOTOR_ID = 7
+    private const val BACK_RIGHT_STEER_MOTOR_ID = 8
+    private const val BACK_RIGHT_ENCODER_ID = 4
+    private const val BACK_RIGHT_ENCODER_OFFSET = -0.465576171875
+    private const val BACK_RIGHT_STEER_INVERT = true
 
-    private const val kBackRightXPosInches = -8.5
-    private const val kBackRightYPosInches = -8.5
+    private const val BACK_RIGHT_X_POS_INCHES = -8.5
+    private const val BACK_RIGHT_Y_POS_INCHES = -8.5
 
     val FrontLeft =
         ConstantCreator.createModuleConstants(
-                kFrontLeftSteerMotorId,
-                kFrontLeftDriveMotorId,
-                kFrontLeftEncoderId,
-                kFrontLeftEncoderOffset,
-                inchesToMeters(kFrontLeftXPosInches),
-                inchesToMeters(kFrontLeftYPosInches),
-                kInvertLeftSide,
+                FRONT_LEFT_STEER_MOTOR_ID,
+                FRONT_LEFT_DRIVE_MOTOR_ID,
+                FRONT_LEFT_ENCODER_ID,
+                FRONT_LEFT_ENCODER_OFFSET,
+                inchesToMeters(FRONT_LEFT_X_POS_INCHES),
+                inchesToMeters(FRONT_LEFT_Y_POS_INCHES),
+                INVERT_LEFT_SIDE,
             )
-            .apply { SteerMotorInverted = kFrontLeftSteerInvert }
+            .apply { SteerMotorInverted = FRONT_LEFT_STEER_INVERT }
     val FrontRight =
         ConstantCreator.createModuleConstants(
-                kFrontRightSteerMotorId,
-                kFrontRightDriveMotorId,
-                kFrontRightEncoderId,
-                kFrontRightEncoderOffset,
-                inchesToMeters(kFrontRightXPosInches),
-                inchesToMeters(kFrontRightYPosInches),
-                kInvertRightSide,
+                FRONT_RIGHT_STEER_MOTOR_ID,
+                FRONT_RIGHT_DRIVE_MOTOR_ID,
+                FRONT_RIGHT_ENCODER_ID,
+                FRONT_RIGHT_ENCODER_OFFSET,
+                inchesToMeters(FRONT_RIGHT_X_POS_INCHES),
+                inchesToMeters(FRONT_RIGHT_Y_POS_INCHES),
+                INVERT_RIGHT_SIDE,
             )
-            .apply { SteerMotorInverted = kFrontRightSteerInvert }
+            .apply { SteerMotorInverted = FRONT_RIGHT_STEER_INVERT }
     val BackLeft =
         ConstantCreator.createModuleConstants(
-                kBackLeftSteerMotorId,
-                kBackLeftDriveMotorId,
-                kBackLeftEncoderId,
-                kBackLeftEncoderOffset,
-                inchesToMeters(kBackLeftXPosInches),
-                inchesToMeters(kBackLeftYPosInches),
-                kInvertLeftSide,
+                BACK_LEFT_STEER_MOTOR_ID,
+                BACK_LEFT_DRIVE_MOTOR_ID,
+                BACK_LEFT_ENCODER_ID,
+                BACK_LEFT_ENCODER_OFFSET,
+                inchesToMeters(BACK_LEFT_X_POS_INCHES),
+                inchesToMeters(BACK_LEFT_Y_POS_INCHES),
+                INVERT_LEFT_SIDE,
             )
-            .apply { SteerMotorInverted = kBackLeftSteerInvert }
+            .apply { SteerMotorInverted = BACK_LEFT_STEER_INVERT }
     val BackRight =
         ConstantCreator.createModuleConstants(
-                kBackRightSteerMotorId,
-                kBackRightDriveMotorId,
-                kBackRightEncoderId,
-                kBackRightEncoderOffset,
-                inchesToMeters(kBackRightXPosInches),
-                inchesToMeters(kBackRightYPosInches),
-                kInvertRightSide,
+                BACK_RIGHT_STEER_MOTOR_ID,
+                BACK_RIGHT_DRIVE_MOTOR_ID,
+                BACK_RIGHT_ENCODER_ID,
+                BACK_RIGHT_ENCODER_OFFSET,
+                inchesToMeters(BACK_RIGHT_X_POS_INCHES),
+                inchesToMeters(BACK_RIGHT_Y_POS_INCHES),
+                INVERT_RIGHT_SIDE,
             )
-            .apply { SteerMotorInverted = kBackRightSteerInvert }
+            .apply { SteerMotorInverted = BACK_RIGHT_STEER_INVERT }
 }

@@ -9,6 +9,7 @@ import edu.wpi.first.units.Current
 import edu.wpi.first.units.Measure
 import edu.wpi.first.units.MutableMeasure.mutable
 import edu.wpi.first.units.Units.Amps
+import frc.team78.lib.amps
 
 class SysIdSwerveTranslationTorqueCurrentFOC : SwerveRequest {
     /* Voltage to apply to drive wheels. This is final to enforce mutating the value */
@@ -24,7 +25,7 @@ class SysIdSwerveTranslationTorqueCurrentFOC : SwerveRequest {
         for (module in modulesToApply) {
             module.applyCharacterization(
                 Rotation2d.fromDegrees(0.0),
-                torqueCurrentRequest.withOutput(torqueCurrentToApply.`in`(Amps)),
+                torqueCurrentRequest.withOutput(torqueCurrentToApply.amps),
             )
         }
         return StatusCode.OK

@@ -48,6 +48,8 @@ val Number.radiansPerSecond: Measure<Velocity<Angle>>
     get() = RadiansPerSecond.of(this.toDouble())
 val Number.radiansPerSecondPerSecond: Measure<Velocity<Velocity<Angle>>>
     get() = RadiansPerSecond.of(this.toDouble()).per(1.seconds)
+val Number.rpm
+    get() = Units.RPM.of(this.toDouble())
 val Number.degrees: Measure<Angle>
     get() = Degrees.of(this.toDouble())
 
@@ -65,3 +67,5 @@ val Measure<Voltage>.volts
     get() = this.`in`(Volts)
 val Measure<Angle>.radians
     get() = this.`in`(Radians)
+val Measure<Current>.amps
+    get() = this.`in`(Amps)

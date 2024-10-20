@@ -70,6 +70,22 @@ object SwerveDrive :
                 }
         }
 
+    val brakeRequest = SwerveRequest.SwerveDriveBrake()
+
+    val brake
+        get() = applyRequest { brakeRequest }
+
+    val targetSpeaker
+        get() = applyRequest {
+            driveAtAngleBlueOriginRequest.apply {
+                VelocityX = 0.0
+                VelocityY = 0.0
+                TargetDirection =
+                    (SPEAKER_POSE - estimatedPose.translation).angle +
+                        Rotation2d.fromRadians(Math.PI)
+            }
+        }
+
     val translationSysIdRequest = SysIdSwerveTranslationTorqueCurrentFOC()
 
     val rotationSysIdRequest = SwerveRequest.SysIdSwerveRotation()
@@ -157,7 +173,7 @@ object SwerveDrive :
             HolonomicPathFollowerConfig(
                 TRANSLATION_PID,
                 ROTATION_PID,
-                TunerConstants.kSpeedAt12VoltsMps,
+                TunerConstants.SPEED_AT_12_VOLTS_MPS,
                 driveBaseRadius,
                 ReplanningConfig(),
             ),
@@ -199,7 +215,7 @@ object SwerveDrive :
     private val rotationController = PIDController(0.15, 0.0, 0.0015)
 
     /** Command to drive into the note detected by the camera */
-    val autoAlignToNote =
+    val autoDriveToNote =
         PIDCommand(
             rotationController,
             noteDetectionYaw,

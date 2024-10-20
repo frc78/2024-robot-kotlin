@@ -75,7 +75,7 @@ object Elevator : SubsystemBase("Elevator") {
         SmartDashboard.putData(this)
 
         // When there is no active command, move the elevator to the bottom
-        defaultCommand = goToPosition(STOW_HEIGHT).withName("stow")
+        defaultCommand = zero
     }
 
     private val elevatorSim =
@@ -205,6 +205,7 @@ object Elevator : SubsystemBase("Elevator") {
                             }
                         leader.configurator.apply(softLimitSwitchConfigs)
                         zeroed = true
+                        defaultCommand = goToStow
                     },
                     { leader.reverseLimit.value == ReverseLimitValue.ClosedToGround },
                     this,
@@ -212,6 +213,9 @@ object Elevator : SubsystemBase("Elevator") {
                 // Don't allow interrupting this routine. It must complete to zero the elevator
                 .withInterruptBehavior(Command.InterruptionBehavior.kCancelIncoming)
                 .withName("Zero Elevator")
+
+    val goToStow
+        get() = goToPosition(STOW_HEIGHT).withName("stow")
 
     /** Command to move the elevator to the AMP height */
     val goToAmp

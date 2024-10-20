@@ -4,7 +4,6 @@
 package frc.team78
 
 import com.ctre.phoenix6.SignalLogger
-import com.ctre.phoenix6.mechanisms.swerve.SwerveRequest
 import com.pathplanner.lib.auto.AutoBuilder
 import com.pathplanner.lib.auto.NamedCommands
 import com.pathplanner.lib.controllers.PPHolonomicDriveController
@@ -12,7 +11,6 @@ import edu.wpi.first.hal.FRCNetComm.tInstances.kLanguage_Kotlin
 import edu.wpi.first.hal.FRCNetComm.tResourceType.kResourceType_Language
 import edu.wpi.first.hal.HAL
 import edu.wpi.first.math.geometry.Rotation2d
-import edu.wpi.first.math.geometry.Translation2d
 import edu.wpi.first.net.PortForwarder
 import edu.wpi.first.wpilibj.DriverStation
 import edu.wpi.first.wpilibj.GenericHID.RumbleType
@@ -27,18 +25,16 @@ import edu.wpi.first.wpilibj2.command.Commands
 import edu.wpi.first.wpilibj2.command.button.CommandXboxController
 import edu.wpi.first.wpilibj2.command.button.RobotModeTriggers
 import edu.wpi.first.wpilibj2.command.button.Trigger
-import frc.team78.commands.VarFeedPrime
+import frc.team78.commands.CommandFactory
 import frc.team78.commands.VarShootPrime
 import frc.team78.lib.*
 import frc.team78.subsystems.chassis.*
 import frc.team78.subsystems.elevator.Elevator
 import frc.team78.subsystems.feedback.LED
 import frc.team78.subsystems.feeder.Feeder
-import frc.team78.subsystems.intake.Intake
 import frc.team78.subsystems.shooter.Shooter
 import frc.team78.subsystems.wrist.Wrist
 import java.util.*
-import kotlin.jvm.optionals.getOrNull
 
 object Robot : TimedRobot() {
     init {
@@ -47,84 +43,14 @@ object Robot : TimedRobot() {
 
     private var autonomousCommand: Command? = null
 
-    private val driver =
-        CommandXboxController(0).apply {
-            rightBumper()
-                .whileTrue(
-                    intakeNote.deadlineWith(SwerveDrive.autoAlignToNote).withName("Auto Note Align")
-                )
+    private val driver = CommandXboxController(0).apply { configureDriverBindings() }
 
-            val baseSwerveDrive = BaseSwerveDrive(this.hid, SwerveDrive.MOTION_LIMITS)
-            SwerveDrive.defaultCommand =
-                SwerveDrive.applyRequest {
-                        val speeds = baseSwerveDrive.chassisSpeeds
-                        SwerveDrive.driveRequest.apply {
-                            VelocityX = speeds.vxMetersPerSecond
-                            VelocityY = speeds.vyMetersPerSecond
-                            RotationalRate = speeds.omegaRadiansPerSecond
-                        }
-                    }
-                    .withName("Drive Field Centric")
-
-            rightBumper()
-                .whileTrue(
-                    intakeNote
-                        .deadlineWith(SwerveDrive.autoAlignToNote)
-                        .withName("Auto Pickup Note")
-                )
-            leftBumper()
-                .whileTrue(
-                    SwerveDrive.applyRequest {
-                        SwerveDrive.driveAtAngleBlueOriginRequest.apply {
-                            VelocityX =
-                                -leftY *
-                                    SwerveDrive.MOTION_LIMITS.maxTranslationVelocity.metersPerSecond
-                            VelocityY =
-                                -leftX *
-                                    SwerveDrive.MOTION_LIMITS.maxTranslationVelocity.metersPerSecond
-                            TargetDirection =
-                                (SPEAKER_POSE - SwerveDrive.estimatedPose.translation)
-                                    .angle
-                                    .rotateBy(Rotation2d.fromRadians(Math.PI))
-                        }
-                    }
-                )
-
-            povDown().whileTrue(SwerveDrive.applyRequest { SwerveRequest.SwerveDriveBrake() })
-        }
-
-    private val operator =
-        CommandXboxController(1).apply {
-            x().whileTrue(VarFeedPrime(Constants.SHOOTER_POSITION))
-
-            leftTrigger()
-                .whileTrue(Shooter.spinUp.alongWith(VarShootPrime()).withName("Feed"))
-                .onFalse(Shooter.stop.alongWith(Wrist.stow))
-
-            y().whileTrue(Wrist.ampPosition.alongWith(Elevator.goToAmp).withName("Amp"))
-                .onFalse(Wrist.stow)
-
-            a().whileTrue(Elevator.goToClimb)
-            rightBumper().whileTrue(intakeNote)
-
-            leftBumper().whileTrue(Feeder.eject)
-            rightTrigger().whileTrue(Feeder.shoot)
-        }
+    private val operator = CommandXboxController(1).apply { configureOperatorBindings() }
 
     // SysId Controller
     init {
-        CommandXboxController(5).apply {
-            a().whileTrue(Shooter.runSysId)
-            b().whileTrue(SwerveDrive.translationSysId)
-            x().whileTrue(Elevator.runSysId)
-            y().whileTrue(Wrist.runSysId)
-            leftBumper().whileTrue(SwerveDrive.rotationSysId)
-            rightBumper().whileTrue(SwerveDrive.steerSysId)
-        }
+        CommandXboxController(5).apply { configureSysIdBindings() }
     }
-
-    private val intakeNote
-        get() = Feeder.intake.deadlineWith(Intake.intake, Wrist.stow).withName("Pick Up Note")
 
     init {
         CommandScheduler.getInstance().onCommandInitialize { command ->
@@ -140,6 +66,7 @@ object Robot : TimedRobot() {
 
         PortForwarder.add(5801, "photonvision.local", 5801)
 
+        /** Doesn't start logging unless FMS is attached */
         SignalLogger.setPath("/U/ctre-logs")
 
         Trigger(Feeder::hasNote)
@@ -158,7 +85,6 @@ object Robot : TimedRobot() {
             .and(RobotModeTriggers.teleop())
             .onTrue(operator.shortRumble(RumbleType.kBothRumble))
 
-        RobotModeTriggers.disabled().negate().and { !Elevator.zeroed }.onTrue(Elevator.zero)
 
         RobotModeTriggers.disabled()
             .and { DriverStation.isDSAttached() }
@@ -187,32 +113,13 @@ object Robot : TimedRobot() {
         }
         NamedCommands.registerCommands(
             mapOf(
-                "Intake" to intakeNote,
+                "Intake" to CommandFactory.intakeNote,
                 "StopShooter" to Shooter.stop,
                 "StartShooter" to Shooter.spinUp,
-                "Score" to Commands.waitUntil { Shooter.isAtSpeed }.andThen(Feeder.shoot),
+                "Score" to CommandFactory.shootNote,
                 "stow" to Wrist.stow,
-                "Target" to
-                    SwerveDrive.applyRequest {
-                        SwerveDrive.driveAtAngleBlueOriginRequest.apply {
-                            VelocityX = 0.0
-                            VelocityY = 0.0
-                            TargetDirection =
-                                (SPEAKER_POSE - SwerveDrive.estimatedPose.translation).angle +
-                                    Rotation2d.fromRadians(Math.PI)
-                        }
-                    },
-                "DriveToNote" to
-                    intakeNote
-                        .deadlineWith(SwerveDrive.autoAlignToNote)
-                        .until {
-                            when (DriverStation.getAlliance().getOrNull()) {
-                                DriverStation.Alliance.Blue ->
-                                    SwerveDrive.estimatedPose.translation.x > 8.25
-                                else -> SwerveDrive.estimatedPose.translation.x < 8.25
-                            }
-                        }
-                        .withName("Drive to Note"),
+                "Target" to SwerveDrive.targetSpeaker,
+                "DriveToNote" to CommandFactory.autoPickupNoteWithMidlineStop,
                 "VariableShoot" to VarShootPrime(),
             )
         )
@@ -237,11 +144,7 @@ object Robot : TimedRobot() {
         CommandScheduler.getInstance().cancelAll()
     }
 
-    object Constants {
-        val SHOOTER_POSITION = Translation2d(0.0, 0.56)
-    }
-
     private fun CommandXboxController.shortRumble(type: RumbleType) =
-        Commands.startEnd({ hid.setRumble(type, 1.0) }, { hid.setRumble(type, 0.0) })
-            .withTimeout(0.3)
+            Commands.startEnd({ hid.setRumble(type, 1.0) }, { hid.setRumble(type, 0.0) })
+                .withTimeout(0.3)
 }

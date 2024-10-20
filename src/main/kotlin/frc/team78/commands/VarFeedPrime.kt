@@ -17,8 +17,7 @@ import kotlin.math.cos
 import kotlin.math.sin
 import kotlin.math.sqrt
 
-/** @param shooterXZTrans Position of the shooter in the XZ plane */
-class VarFeedPrime(private val shooterXZTrans: Translation2d) : Command() {
+class VarFeedPrime() : Command() {
 
     private var plopPose = Translation2d()
 
@@ -36,11 +35,11 @@ class VarFeedPrime(private val shooterXZTrans: Translation2d) : Command() {
         val pose = SwerveDrive.estimatedPose
 
         // Distance and height to speaker
-        var distanceToTarget = pose.translation.getDistance(plopPose) - shooterXZTrans.x
+        var distanceToTarget = pose.translation.getDistance(plopPose) - SHOOTER_POSITION.x
         distanceToTarget *= DIST_FUDGE_FACTOR
 
         // double distanceToTarget = lInput.getDouble(3);
-        var heightToTarget: Double = shooterXZTrans.y - inchesToMeters(Elevator.position)
+        var heightToTarget: Double = SHOOTER_POSITION.y - inchesToMeters(Elevator.position)
         // Inverts the heigh as we are shooting from the robot to the ground, but the calculations
         // are
         // always done from (0, 0) so we use this as our offset
@@ -71,5 +70,6 @@ class VarFeedPrime(private val shooterXZTrans: Translation2d) : Command() {
         private const val GRAVITY = 9.81
         private val ROTATIONS_PER_METER = 1 / inchesToMeters(3.85) * PI
         private const val DIST_FUDGE_FACTOR = 1
+        private val SHOOTER_POSITION = Translation2d(0.0, 0.56)
     }
 }
