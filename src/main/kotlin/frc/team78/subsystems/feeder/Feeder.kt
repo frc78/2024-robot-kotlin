@@ -6,7 +6,6 @@ import com.ctre.phoenix6.hardware.TalonFX
 import com.ctre.phoenix6.signals.ForwardLimitValue
 import edu.wpi.first.networktables.NetworkTableInstance
 import edu.wpi.first.wpilibj.smartdashboard.SmartDashboard
-import edu.wpi.first.wpilibj2.command.Command
 import edu.wpi.first.wpilibj2.command.Commands.idle
 import edu.wpi.first.wpilibj2.command.FunctionalCommand
 import edu.wpi.first.wpilibj2.command.SubsystemBase
@@ -15,10 +14,7 @@ object Feeder : SubsystemBase() {
 
     private const val MOTOR_CAN_ID = 16
     private val feedMotor =
-        TalonFX(MOTOR_CAN_ID, "*").apply {
-            forwardLimit.setUpdateFrequency(50.0)
-            optimizeBusUtilization()
-        }
+        TalonFX(MOTOR_CAN_ID, "*").apply { forwardLimit.setUpdateFrequency(50.0) }
 
     private val ejectControl = DutyCycleOut(-.85)
     private val intakeControl = DutyCycleOut(0.85)
@@ -38,34 +34,36 @@ object Feeder : SubsystemBase() {
             runOnce { feedMotor.setControl(stopControl) }.andThen(idle()).withName("stop")
     }
 
-    fun intake(): Command =
-        FunctionalCommand(
-                {
-                    feedMotor.configurator.apply(INTAKE_CONFIG, 0.1)
-                    feedMotor.setControl(intakeControl)
-                },
-                {},
-                { feedMotor.configurator.apply(SHOOT_CONFIG, .1) },
-                { feedMotor.forwardLimit.value == ForwardLimitValue.ClosedToGround },
-                this,
-            )
-            .withName("Intake")
+    val intake
+        get() =
+            FunctionalCommand(
+                    {
+                        feedMotor.configurator.apply(INTAKE_CONFIG, 0.1)
+                        feedMotor.setControl(intakeControl)
+                    },
+                    {},
+                    { feedMotor.configurator.apply(SHOOT_CONFIG, .1) },
+                    { feedMotor.forwardLimit.value == ForwardLimitValue.ClosedToGround },
+                    this,
+                )
+                .withName("Intake")
 
-    fun eject(): Command =
-        runOnce { feedMotor.setControl(ejectControl) }.andThen(idle()).withName("Eject")
+    val eject
+        get() = runOnce { feedMotor.setControl(ejectControl) }.andThen(idle()).withName("Eject")
 
-    fun shoot(): Command =
-        FunctionalCommand(
-                {
-                    feedMotor.configurator.apply(SHOOT_CONFIG, 0.01)
-                    feedMotor.setControl(shootControl)
-                },
-                {},
-                { feedMotor.configurator.apply(INTAKE_CONFIG, 0.01) },
-                { feedMotor.forwardLimit.value == ForwardLimitValue.Open },
-                this,
-            )
-            .withName("Shoot")
+    val shoot
+        get() =
+            FunctionalCommand(
+                    {
+                        feedMotor.configurator.apply(SHOOT_CONFIG, 0.01)
+                        feedMotor.setControl(shootControl)
+                    },
+                    {},
+                    { feedMotor.configurator.apply(INTAKE_CONFIG, 0.01) },
+                    { feedMotor.forwardLimit.value == ForwardLimitValue.Open },
+                    this,
+                )
+                .withName("Shoot")
 
     val hasNote
         get() = feedMotor.forwardLimit.value == ForwardLimitValue.ClosedToGround

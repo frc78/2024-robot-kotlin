@@ -8,17 +8,19 @@ import com.ctre.phoenix6.mechanisms.swerve.SwerveRequest
 import com.pathplanner.lib.auto.AutoBuilder
 import com.pathplanner.lib.auto.NamedCommands
 import com.pathplanner.lib.controllers.PPHolonomicDriveController
+import edu.wpi.first.hal.FRCNetComm.tInstances.kLanguage_Kotlin
+import edu.wpi.first.hal.FRCNetComm.tResourceType.kResourceType_Language
+import edu.wpi.first.hal.HAL
 import edu.wpi.first.math.geometry.Rotation2d
 import edu.wpi.first.math.geometry.Translation2d
 import edu.wpi.first.net.PortForwarder
-import edu.wpi.first.units.Units.*
-import edu.wpi.first.wpilibj.DataLogManager
 import edu.wpi.first.wpilibj.DriverStation
 import edu.wpi.first.wpilibj.GenericHID.RumbleType
 import edu.wpi.first.wpilibj.PowerDistribution
 import edu.wpi.first.wpilibj.TimedRobot
 import edu.wpi.first.wpilibj.smartdashboard.SendableChooser
 import edu.wpi.first.wpilibj.smartdashboard.SmartDashboard
+import edu.wpi.first.wpilibj.util.WPILibVersion
 import edu.wpi.first.wpilibj2.command.Command
 import edu.wpi.first.wpilibj2.command.CommandScheduler
 import edu.wpi.first.wpilibj2.command.Commands
@@ -39,59 +41,47 @@ import java.util.*
 import kotlin.jvm.optionals.getOrNull
 
 object Robot : TimedRobot() {
+    init {
+        HAL.report(kResourceType_Language, kLanguage_Kotlin, 0, WPILibVersion.Version)
+    }
+
     private var autonomousCommand: Command? = null
 
     private val driver =
         CommandXboxController(0).apply {
             rightBumper()
                 .whileTrue(
-                    intakeNote()
-                        .deadlineWith(SwerveDrive.autoAlignToNote())
-                        .withName("Auto Note Align")
+                    intakeNote.deadlineWith(SwerveDrive.autoAlignToNote).withName("Auto Note Align")
                 )
 
+            val baseSwerveDrive = BaseSwerveDrive(this.hid, SwerveDrive.MOTION_LIMITS)
             SwerveDrive.defaultCommand =
                 SwerveDrive.applyRequest {
+                        val speeds = baseSwerveDrive.chassisSpeeds
                         SwerveDrive.driveRequest.apply {
-                            VelocityX =
-                                -leftY *
-                                    SwerveDrive.MOTION_LIMITS.maxTranslationVelocity.`in`(
-                                        MetersPerSecond
-                                    )
-                            VelocityY =
-                                -leftX *
-                                    SwerveDrive.MOTION_LIMITS.maxTranslationVelocity.`in`(
-                                        MetersPerSecond
-                                    )
-                            RotationalRate =
-                                -rightX *
-                                    SwerveDrive.MOTION_LIMITS.maxAngularVelocity.`in`(
-                                        RadiansPerSecond
-                                    )
+                            VelocityX = speeds.vxMetersPerSecond
+                            VelocityY = speeds.vyMetersPerSecond
+                            RotationalRate = speeds.omegaRadiansPerSecond
                         }
                     }
                     .withName("Drive Field Centric")
 
             rightBumper()
                 .whileTrue(
-                    intakeNote()
-                        .deadlineWith(SwerveDrive.autoAlignToNote())
+                    intakeNote
+                        .deadlineWith(SwerveDrive.autoAlignToNote)
                         .withName("Auto Pickup Note")
                 )
             leftBumper()
                 .whileTrue(
                     SwerveDrive.applyRequest {
-                        SwerveDrive.driveAtAngleRequest.apply {
+                        SwerveDrive.driveAtAngleBlueOriginRequest.apply {
                             VelocityX =
                                 -leftY *
-                                    SwerveDrive.MOTION_LIMITS.maxTranslationVelocity.`in`(
-                                        MetersPerSecond
-                                    )
+                                    SwerveDrive.MOTION_LIMITS.maxTranslationVelocity.metersPerSecond
                             VelocityY =
                                 -leftX *
-                                    SwerveDrive.MOTION_LIMITS.maxTranslationVelocity.`in`(
-                                        MetersPerSecond
-                                    )
+                                    SwerveDrive.MOTION_LIMITS.maxTranslationVelocity.metersPerSecond
                             TargetDirection =
                                 (SPEAKER_POSE - SwerveDrive.estimatedPose.translation)
                                     .angle
@@ -108,33 +98,33 @@ object Robot : TimedRobot() {
             x().whileTrue(VarFeedPrime(Constants.SHOOTER_POSITION))
 
             leftTrigger()
-                .whileTrue(Shooter.spinUp().alongWith(VarShootPrime()).withName("Feed"))
-                .onFalse(Shooter.stop().alongWith(Wrist.stow()))
+                .whileTrue(Shooter.spinUp.alongWith(VarShootPrime()).withName("Feed"))
+                .onFalse(Shooter.stop.alongWith(Wrist.stow))
 
-            y().whileTrue(Wrist.ampPosition().alongWith(Elevator.goToAmp()).withName("Amp"))
-                .onFalse(Wrist.stow())
+            y().whileTrue(Wrist.ampPosition.alongWith(Elevator.goToAmp).withName("Amp"))
+                .onFalse(Wrist.stow)
 
-            a().whileTrue(Elevator.goToClimb())
-            rightBumper().whileTrue(intakeNote())
+            a().whileTrue(Elevator.goToClimb)
+            rightBumper().whileTrue(intakeNote)
 
-            leftBumper().whileTrue(Feeder.eject())
-            rightTrigger().whileTrue(Feeder.shoot())
+            leftBumper().whileTrue(Feeder.eject)
+            rightTrigger().whileTrue(Feeder.shoot)
         }
 
     // SysId Controller
     init {
         CommandXboxController(5).apply {
-            a().whileTrue(Shooter.runSysId())
-            b().whileTrue(SwerveDrive.translationSysId())
-            x().whileTrue(Elevator.runSysId())
-            y().whileTrue(Wrist.runSysId())
-            leftBumper().whileTrue(SwerveDrive.rotationSysId())
-            rightBumper().whileTrue(SwerveDrive.steerSysId())
+            a().whileTrue(Shooter.runSysId)
+            b().whileTrue(SwerveDrive.translationSysId)
+            x().whileTrue(Elevator.runSysId)
+            y().whileTrue(Wrist.runSysId)
+            leftBumper().whileTrue(SwerveDrive.rotationSysId)
+            rightBumper().whileTrue(SwerveDrive.steerSysId)
         }
     }
 
-    private fun intakeNote() =
-        Feeder.intake().deadlineWith(Intake.intake(), Wrist.stow()).withName("Pick Up Note")
+    private val intakeNote
+        get() = Feeder.intake.deadlineWith(Intake.intake, Wrist.stow).withName("Pick Up Note")
 
     init {
         CommandScheduler.getInstance().onCommandInitialize { command ->
@@ -150,20 +140,17 @@ object Robot : TimedRobot() {
 
         PortForwarder.add(5801, "photonvision.local", 5801)
 
-        if (isReal()) {
-            DataLogManager.start()
-            SignalLogger.setPath("/U/ctre-logs")
-        }
+        SignalLogger.setPath("/U/ctre-logs")
 
         Trigger(Feeder::hasNote)
-            .whileTrue(LED.indicateNoteInCartridge())
+            .whileTrue(LED.indicateNoteInCartridge)
             .and(RobotModeTriggers.teleop())
             .onTrue(driver.shortRumble(RumbleType.kRightRumble))
             .onTrue(operator.shortRumble(RumbleType.kRightRumble))
             .onFalse(driver.shortRumble(RumbleType.kBothRumble))
 
         Trigger(Shooter::isAtSpeed)
-            .whileTrue(LED.indicateShooterWheelsAtSpeed())
+            .whileTrue(LED.indicateShooterWheelsAtSpeed)
             .and(RobotModeTriggers.teleop())
             .onTrue(operator.shortRumble(RumbleType.kBothRumble))
 
@@ -171,17 +158,13 @@ object Robot : TimedRobot() {
             .and(RobotModeTriggers.teleop())
             .onTrue(operator.shortRumble(RumbleType.kBothRumble))
 
-        RobotModeTriggers.disabled().negate().and { !Elevator.zeroed }.onTrue(Elevator.zero())
+        RobotModeTriggers.disabled().negate().and { !Elevator.zeroed }.onTrue(Elevator.zero)
 
         RobotModeTriggers.disabled()
             .and { DriverStation.isDSAttached() }
             .onTrue(LED.indicateDisabled())
 
-        RobotModeTriggers.teleop().onTrue(Elevator.brake().alongWith(Wrist.brake()))
-
-        RobotModeTriggers.disabled()
-            .and { !DriverStation.isFMSAttached() }
-            .onTrue(Elevator.coast().alongWith(Wrist.coast()))
+        RobotModeTriggers.teleop().onTrue(Elevator.brake.alongWith(Wrist.brake))
 
         addPeriodic(PoseEstimator::update, 0.02, 0.015)
 
@@ -204,14 +187,14 @@ object Robot : TimedRobot() {
         }
         NamedCommands.registerCommands(
             mapOf(
-                "Intake" to intakeNote(),
-                "StopShooter" to Shooter.stop(),
-                "StartShooter" to Shooter.spinUp(),
-                "Score" to Commands.waitUntil { Shooter.isAtSpeed }.andThen(Feeder.shoot()),
-                "stow" to Wrist.stow(),
+                "Intake" to intakeNote,
+                "StopShooter" to Shooter.stop,
+                "StartShooter" to Shooter.spinUp,
+                "Score" to Commands.waitUntil { Shooter.isAtSpeed }.andThen(Feeder.shoot),
+                "stow" to Wrist.stow,
                 "Target" to
                     SwerveDrive.applyRequest {
-                        SwerveDrive.driveAtAngleRequest.apply {
+                        SwerveDrive.driveAtAngleBlueOriginRequest.apply {
                             VelocityX = 0.0
                             VelocityY = 0.0
                             TargetDirection =
@@ -220,8 +203,8 @@ object Robot : TimedRobot() {
                         }
                     },
                 "DriveToNote" to
-                    intakeNote()
-                        .deadlineWith(SwerveDrive.autoAlignToNote())
+                    intakeNote
+                        .deadlineWith(SwerveDrive.autoAlignToNote)
                         .until {
                             when (DriverStation.getAlliance().getOrNull()) {
                                 DriverStation.Alliance.Blue ->
@@ -255,7 +238,6 @@ object Robot : TimedRobot() {
     }
 
     object Constants {
-
         val SHOOTER_POSITION = Translation2d(0.0, 0.56)
     }
 

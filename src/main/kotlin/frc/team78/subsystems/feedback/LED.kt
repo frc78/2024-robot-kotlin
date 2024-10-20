@@ -8,6 +8,7 @@ import edu.wpi.first.wpilibj.DriverStation
 import edu.wpi.first.wpilibj.DriverStation.Alliance
 import edu.wpi.first.wpilibj.util.Color
 import edu.wpi.first.wpilibj2.command.Command
+import edu.wpi.first.wpilibj2.command.Commands
 import edu.wpi.first.wpilibj2.command.Commands.idle
 import edu.wpi.first.wpilibj2.command.SubsystemBase
 
@@ -17,7 +18,7 @@ object LED : SubsystemBase() {
 
     // The CANdle object for controlling the LEDs.
     private val bracelet =
-        CANdle(CANDLE_CAN_ID).apply {
+        CANdle(CANDLE_CAN_ID, "CANivore").apply {
             configFactoryDefault()
             val config =
                 CANdleConfiguration().apply {
@@ -29,9 +30,11 @@ object LED : SubsystemBase() {
 
     /** Set the color of the entire LED strip */
     private fun setColor(color: Color) {
-        bracelet.apply {
-            setLEDs(color.red.toInt() * 255, color.green.toInt() * 255, color.blue.toInt() * 255)
-        }
+        bracelet.setLEDs(
+            color.red.toInt() * 255,
+            color.green.toInt() * 255,
+            color.blue.toInt() * 255,
+        )
     }
 
     init {
@@ -42,12 +45,15 @@ object LED : SubsystemBase() {
          * end, since default commands will be restarted when no other command is running.
          */
         defaultCommand =
-            runOnce {
-                    when (DriverStation.getAlliance().orElse(Alliance.Blue)) {
-                        Alliance.Red -> setColor(Color.kRed)
-                        else -> setColor(Color.kBlue)
+            Commands.waitUntil { DriverStation.getAlliance().isPresent }
+                .andThen(
+                    runOnce {
+                        when (DriverStation.getAlliance().orElse(Alliance.Blue)) {
+                            Alliance.Red -> setColor(Color.kRed)
+                            else -> setColor(Color.kBlue)
+                        }
                     }
-                }
+                )
                 .andThen(idle())
                 .withName("Set Alliance Color")
     }
@@ -57,8 +63,8 @@ object LED : SubsystemBase() {
      *
      * This sets the leds to green
      */
-    fun indicateNoteInCartridge(): Command =
-        startEnd({ bracelet.apply { setLEDs(0, 255, 0) } }, this::off)
+    val indicateNoteInCartridge
+        get() = startEnd({ bracelet.setLEDs(0, 255, 0) }, this::off)
 
     /** Command to run an animation when the robot is disabled */
     fun indicateDisabled(): Command = runOnce {
@@ -79,12 +85,11 @@ object LED : SubsystemBase() {
     }
 
     /** Command to indicate the shooter is up to speed and ready to fire. Strobes the leds green */
-    fun indicateShooterWheelsAtSpeed(): Command =
-        startEnd({ bracelet.animate(StrobeAnimation(0, 255, 0, 0, 0.2, 68)) }, this::off)
+    val indicateShooterWheelsAtSpeed
+        get() = startEnd({ bracelet.animate(StrobeAnimation(0, 255, 0, 0, 0.2, 68)) }, this::off)
 
-    private fun off() =
-        bracelet.apply {
-            clearAnimation(0)
-            setLEDs(0, 0, 0)
-        }
+    private fun off() {
+        bracelet.clearAnimation(0)
+        bracelet.setLEDs(0, 0, 0)
+    }
 }

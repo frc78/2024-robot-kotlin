@@ -3,6 +3,7 @@ package frc.team78.subsystems.wrist
 import com.ctre.phoenix6.SignalLogger
 import com.ctre.phoenix6.StatusCode
 import com.ctre.phoenix6.configs.TalonFXConfiguration
+import com.ctre.phoenix6.controls.NeutralOut
 import com.ctre.phoenix6.controls.PositionVoltage
 import com.ctre.phoenix6.hardware.TalonFX
 import com.ctre.phoenix6.signals.GravityTypeValue
@@ -13,21 +14,19 @@ import edu.wpi.first.networktables.NetworkTableInstance
 import edu.wpi.first.units.Angle
 import edu.wpi.first.units.Measure
 import edu.wpi.first.units.Units.Degrees
-import edu.wpi.first.units.Units.Rotations
-import edu.wpi.first.units.Units.Volts
 import edu.wpi.first.wpilibj.smartdashboard.SmartDashboard
-import edu.wpi.first.wpilibj2.command.Command
 import edu.wpi.first.wpilibj2.command.Commands
 import edu.wpi.first.wpilibj2.command.SubsystemBase
 import edu.wpi.first.wpilibj2.command.sysid.SysIdRoutine
-import kotlin.math.abs
+import frc.team78.lib.rotations
+import frc.team78.lib.volts
 
 object Wrist : SubsystemBase("Wrist") {
 
     init {
         SmartDashboard.putData(this)
-        SmartDashboard.putData(coast())
-        SmartDashboard.putData(brake())
+        SmartDashboard.putData(coast)
+        SmartDashboard.putData(brake)
     }
 
     private const val MOTOR_CAN_ID = 13
@@ -48,32 +47,33 @@ object Wrist : SubsystemBase("Wrist") {
 
             this.ClosedLoopGeneral.ContinuousWrap = true
             // Times 360 to convert to degrees
-            this.Feedback.SensorToMechanismRatio = 375.0
+            this.Feedback.SensorToMechanismRatio = 108.0
 
-            this.SoftwareLimitSwitch.ForwardSoftLimitThreshold = FORWARD_SOFT_LIMIT.`in`(Rotations)
+            this.MotorOutput.NeutralMode = NeutralModeValue.Coast
+            this.MotorOutput.Inverted = InvertedValue.CounterClockwise_Positive
+
+            this.SoftwareLimitSwitch.ForwardSoftLimitThreshold = FORWARD_SOFT_LIMIT.rotations
             this.SoftwareLimitSwitch.ForwardSoftLimitEnable = true
-            this.SoftwareLimitSwitch.ReverseSoftLimitThreshold = REVERSE_SOFT_LIMIT.`in`(Rotations)
+            this.SoftwareLimitSwitch.ReverseSoftLimitThreshold = REVERSE_SOFT_LIMIT.rotations
             this.SoftwareLimitSwitch.ReverseSoftLimitEnable = true
-            MotorOutput.Inverted = InvertedValue.CounterClockwise_Positive
         }
     private val absEncoder = Canandmag(1)
 
     private val motor =
         TalonFX(MOTOR_CAN_ID, "*").apply {
             this.configurator.apply(config)
-            // Start the wrist in coast mode when the robot turns on
-            this.setNeutralMode(NeutralModeValue.Coast)
-            // Seed the position with the absolute encoder
-            this.setPosition(absEncoder.position, 1.0)
             this.position.setUpdateFrequency(100.0)
             this.velocity.setUpdateFrequency(100.0)
-            this.optimizeBusUtilization()
         }
 
-    private val control = PositionVoltage(STOW_ANGLE.`in`(Rotations))
+    private val control = PositionVoltage(STOW_ANGLE.rotations)
 
     fun setTarget(target: Measure<Angle>): StatusCode =
-        motor.setControl(control.withPosition(target.`in`(Rotations)))
+        if (zeroed) {
+            motor.setControl(control.withPosition(target.rotations))
+        } else {
+            motor.setControl(NeutralOut())
+        }
 
     private fun setTargetCommand(target: Measure<Angle>) =
         runOnce { setTarget(target) }.withName("setTarget($target)")
@@ -81,40 +81,34 @@ object Wrist : SubsystemBase("Wrist") {
     val position: Double
         get() = motor.position.value
 
-    fun stow(): Command = setTargetCommand(STOW_ANGLE)
+    val stow
+        get() = setTargetCommand(STOW_ANGLE)
 
-    fun ampPosition(): Command = setTargetCommand(AMP_ANGLE)
+    val ampPosition
+        get() = setTargetCommand(AMP_ANGLE)
 
-    fun coast(): Command =
-        runOnce { motor.setNeutralMode(NeutralModeValue.Coast) }
-            .ignoringDisable(true)
-            .withName("Coast Wrist")
+    val coast
+        get() =
+            runOnce { motor.setNeutralMode(NeutralModeValue.Coast) }
+                .ignoringDisable(true)
+                .withName("Coast Wrist")
 
-    fun brake(): Command =
-        runOnce { motor.setNeutralMode(NeutralModeValue.Brake) }
-            .ignoringDisable(true)
-            .withName("Brake Wrist")
+    val brake
+        get() =
+            runOnce { motor.setNeutralMode(NeutralModeValue.Brake) }
+                .ignoringDisable(true)
+                .withName("Brake Wrist")
 
-    private var encoderSyncCount = 0
-    private var lastEncoderReading = absEncoder.absPosition
+    private var zeroed = false
 
     override fun periodic() {
         positionNtPub.set(position)
 
-        absEncoder.absPosition.let {
-            absEncoderNtPub.set(it)
-            // If the encoder reading is stable for 5 continuous cycles, sync the motor position
-            if (abs(it - lastEncoderReading) < 0.01) {
-                encoderSyncCount++
-                if (encoderSyncCount >= 5) {
-                    motor.setPosition(it, 0.0)
-                    encoderSyncCount = 0
-                }
-            } else {
-                encoderSyncCount = 0
-            }
-            lastEncoderReading = it
+        if (!zeroed && absEncoder.isConnected) {
+            motor.setPosition(absEncoder.position)
+            zeroed = true
         }
+        absEncoderNtPub.set(absEncoder.absPosition)
     }
 
     private val sysIdRoutine =
@@ -123,28 +117,29 @@ object Wrist : SubsystemBase("Wrist") {
                 SignalLogger.writeString("state", it.toString())
             },
             SysIdRoutine.Mechanism(
-                { voltage -> motor.setVoltage(voltage.`in`(Volts)) },
+                { voltage -> motor.setVoltage(voltage.volts) },
                 null,
                 this,
                 "wrist",
             ),
         )
 
-    fun runSysId(): Command =
-        Commands.sequence(
-            runOnce(SignalLogger::start),
-            sysIdRoutine.dynamic(SysIdRoutine.Direction.kForward).until {
-                motor.fault_ForwardSoftLimit.value
-            },
-            sysIdRoutine.dynamic(SysIdRoutine.Direction.kReverse).until {
-                motor.fault_ReverseSoftLimit.value
-            },
-            sysIdRoutine.quasistatic(SysIdRoutine.Direction.kForward).until {
-                motor.fault_ForwardSoftLimit.value
-            },
-            sysIdRoutine.quasistatic(SysIdRoutine.Direction.kReverse).until {
-                motor.fault_ReverseSoftLimit.value
-            },
-            runOnce(SignalLogger::stop),
-        )
+    val runSysId
+        get() =
+            Commands.sequence(
+                runOnce(SignalLogger::start),
+                sysIdRoutine.dynamic(SysIdRoutine.Direction.kForward).until {
+                    motor.fault_ForwardSoftLimit.value
+                },
+                sysIdRoutine.dynamic(SysIdRoutine.Direction.kReverse).until {
+                    motor.fault_ReverseSoftLimit.value
+                },
+                sysIdRoutine.quasistatic(SysIdRoutine.Direction.kForward).until {
+                    motor.fault_ForwardSoftLimit.value
+                },
+                sysIdRoutine.quasistatic(SysIdRoutine.Direction.kReverse).until {
+                    motor.fault_ReverseSoftLimit.value
+                },
+                runOnce(SignalLogger::stop),
+            )
 }
