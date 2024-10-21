@@ -13,11 +13,9 @@ JetBrains. Be sure to scroll down and install the Community edition, as it is fr
 ## Third-Party Dependencies
 
 WPILib supports installing 3rd party dependencies via json files in the `vendordeps` directory.
-Using VSCode, you can install these dependencies by running
-the `WPILib: Install Third-Party Libraries` command. This command doesn't exist in IntelliJ, so the
-preferred method is to open the project in VSCode, install the dependencies, and then open the
-project in IntelliJ. Alternatively, you can manually install the dependencies by downloading the
-JSON file and placing it in the `vendordeps` directory.
+
+To install a third-party dependency, use the gradle command
+`./gradlew vendorDep --url=<url>`
 
 ## Structure
 
@@ -27,8 +25,6 @@ The project is structured as follows:
   Mainly used for autonomous path files.
 - `src/main/kotlin/frc/team78`: Root package of the robot code. All robot code should be placed in
   this package or a subpackage.
-- `src/main/kotlin/frc/team78`: Contains the robot code for the 2024 robot. This is where the
-  majority of the code will be placed. Subsequent years will have their own packages (e.g. `y2025`).
 - `src/main/kotlin/frc/team78/lib`: Contains utility classes and other code not specific to a single subsystem.
 - `src/main/kotlin/frc/team78/subsystems`: Contains the subsystems for the robot. Each subsystem has its own package
   that contains the subsystem class and any other classes that are specific to that subsystem (such as
@@ -42,7 +38,8 @@ The project is structured as follows:
 
 ## Subsystem Objects
 
-Because subsystems represent physical components of the robot, they should be represented as kotlin objects, rather than
+Because subsystems represent physical components of the robot, of which there exists only one, they should be
+represented as kotlin objects, rather than
 a class.
 This is because kotlin objects are singletons, meaning that there is only one instance of the object in the entire
 program.
@@ -52,15 +49,12 @@ Constants for a subsystem should be declared inside the object
 ## Commands
 
 Commands should be created using the factory methods provided by `SubsystemBase` whenever possible. This keeps the
-commands inside the subsystem they control, as well as keeping code small. Prefer to use functions rather than property
-access syntax,
-since a new command needs to be generated each time it is used.
+commands inside the subsystem they control, as well as keeping code small.
+
+Remember that a new command must be created any time it is bound to a trigger, so you need to use a getter to recompute
+each time the command is accesed
 
 ```kotlin
-// Preferred method
-fun doAnAction() = startEnd({}, {})
-
-// Not preferred
 val action
     get() = startEnd({}, {})
 ```
