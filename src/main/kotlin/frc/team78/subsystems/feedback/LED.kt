@@ -7,10 +7,10 @@ import com.ctre.phoenix.led.StrobeAnimation
 import edu.wpi.first.wpilibj.DriverStation
 import edu.wpi.first.wpilibj.DriverStation.Alliance
 import edu.wpi.first.wpilibj.util.Color
-import edu.wpi.first.wpilibj2.command.Command
 import edu.wpi.first.wpilibj2.command.Commands
 import edu.wpi.first.wpilibj2.command.Commands.idle
 import edu.wpi.first.wpilibj2.command.SubsystemBase
+import frc.team78.commands.command
 
 /** Subsystem for controlling the LEDs on the robot. */
 object LED : SubsystemBase() {
@@ -63,30 +63,68 @@ object LED : SubsystemBase() {
      *
      * This sets the leds to green
      */
-    val indicateNoteInCartridge
-        get() = startEnd({ bracelet.setLEDs(0, 255, 0) }, this::off)
+    val indicateNoteInCartridge by command { startEnd({ bracelet.setLEDs(0, 255, 0) }, this::off) }
 
     /** Command to run an animation when the robot is disabled */
-    fun indicateDisabled(): Command = runOnce {
-        bracelet.apply {
-            animate(
-                ColorFlowAnimation(0, 0, 255, 0, 0.1, 15, ColorFlowAnimation.Direction.Forward, 7)
-            )
-            animate(
-                ColorFlowAnimation(0, 255, 0, 0, 0.1, 15, ColorFlowAnimation.Direction.Backward, 7)
-            )
-            animate(
-                ColorFlowAnimation(0, 0, 255, 0, 0.1, 7, ColorFlowAnimation.Direction.Forward, 0)
-            )
-            animate(
-                ColorFlowAnimation(0, 255, 0, 0, 0.1, 7, ColorFlowAnimation.Direction.Backward, 0)
-            )
+    val indicateDisabled by command {
+        runOnce {
+            bracelet.apply {
+                animate(
+                    ColorFlowAnimation(
+                        0,
+                        0,
+                        255,
+                        0,
+                        0.1,
+                        15,
+                        ColorFlowAnimation.Direction.Forward,
+                        7,
+                    )
+                )
+                animate(
+                    ColorFlowAnimation(
+                        0,
+                        255,
+                        0,
+                        0,
+                        0.1,
+                        15,
+                        ColorFlowAnimation.Direction.Backward,
+                        7,
+                    )
+                )
+                animate(
+                    ColorFlowAnimation(
+                        0,
+                        0,
+                        255,
+                        0,
+                        0.1,
+                        7,
+                        ColorFlowAnimation.Direction.Forward,
+                        0,
+                    )
+                )
+                animate(
+                    ColorFlowAnimation(
+                        0,
+                        255,
+                        0,
+                        0,
+                        0.1,
+                        7,
+                        ColorFlowAnimation.Direction.Backward,
+                        0,
+                    )
+                )
+            }
         }
     }
 
     /** Command to indicate the shooter is up to speed and ready to fire. Strobes the leds green */
-    val indicateShooterWheelsAtSpeed
-        get() = startEnd({ bracelet.animate(StrobeAnimation(0, 255, 0, 0, 0.2, 68)) }, this::off)
+    val indicateShooterWheelsAtSpeed by command {
+        startEnd({ bracelet.animate(StrobeAnimation(0, 255, 0, 0, 0.2, 68)) }, this::off)
+    }
 
     private fun off() {
         bracelet.clearAnimation(0)

@@ -1,12 +1,14 @@
 package frc.team78.subsystems.intake
 
-import com.ctre.phoenix6.configs.MotorOutputConfigs
+import com.ctre.phoenix6.configs.TalonFXConfiguration
 import com.ctre.phoenix6.controls.DutyCycleOut
 import com.ctre.phoenix6.controls.Follower
 import com.ctre.phoenix6.hardware.TalonFX
 import com.ctre.phoenix6.signals.InvertedValue
 import com.ctre.phoenix6.signals.NeutralModeValue
 import edu.wpi.first.wpilibj2.command.SubsystemBase
+import frc.team78.commands.command
+import frc.team78.subsystems.feeder.Feeder
 
 object Intake : SubsystemBase() {
 
@@ -16,13 +18,13 @@ object Intake : SubsystemBase() {
     private val stoppedControl = DutyCycleOut(0.0)
     private val intakeControl = DutyCycleOut(INTAKE_SPEED)
 
-    private val leaderMotor =
-        TalonFX(LEADER_CAN_ID, "*").apply {
-            configurator.apply(
-                MotorOutputConfigs().withInverted(InvertedValue.CounterClockwise_Positive)
-            )
-            setNeutralMode(NeutralModeValue.Coast)
+    private val config =
+        TalonFXConfiguration().apply {
+            MotorOutput.NeutralMode = NeutralModeValue.Coast
+            MotorOutput.Inverted = InvertedValue.CounterClockwise_Positive
+            OpenLoopRamps.DutyCycleOpenLoopRampPeriod = 1.0
         }
+    private val leaderMotor = TalonFX(LEADER_CAN_ID, "*").apply { configurator.apply(config) }
 
     init {
         TalonFX(FOLLOWER_CAN_ID, "*").apply {
@@ -33,10 +35,11 @@ object Intake : SubsystemBase() {
         }
     }
 
-    val intake
-        get() =
-            startEnd(
-                { leaderMotor.setControl(intakeControl) },
-                { leaderMotor.setControl(stoppedControl) },
-            )
+    val runIntake by command {
+        runEnd(
+            // Don't run intake if the feeder has a note already
+            { leaderMotor.setControl(intakeControl.withLimitForwardMotion(Feeder.hasNote)) },
+            { leaderMotor.setControl(stoppedControl) },
+        )
+    }
 }

@@ -20,11 +20,11 @@ import edu.wpi.first.wpilibj.DriverStation
 import edu.wpi.first.wpilibj.DriverStation.Alliance
 import edu.wpi.first.wpilibj.Notifier
 import edu.wpi.first.wpilibj.RobotController
-import edu.wpi.first.wpilibj2.command.Command
 import edu.wpi.first.wpilibj2.command.Commands
 import edu.wpi.first.wpilibj2.command.PIDCommand
 import edu.wpi.first.wpilibj2.command.Subsystem
 import edu.wpi.first.wpilibj2.command.sysid.SysIdRoutine
+import frc.team78.commands.command
 import frc.team78.lib.*
 import frc.team78.subsystems.chassis.TunerConstants.BackLeft
 import frc.team78.subsystems.chassis.TunerConstants.BackRight
@@ -72,11 +72,10 @@ object SwerveDrive :
 
     val brakeRequest = SwerveRequest.SwerveDriveBrake()
 
-    val brake
-        get() = applyRequest { brakeRequest }
+    val brake by command { applyRequest { brakeRequest } }
 
-    val targetSpeaker
-        get() = applyRequest {
+    val targetSpeaker by command {
+        applyRequest {
             driveAtAngleBlueOriginRequest.apply {
                 VelocityX = 0.0
                 VelocityY = 0.0
@@ -85,6 +84,7 @@ object SwerveDrive :
                         Rotation2d.fromRadians(Math.PI)
             }
         }
+    }
 
     val translationSysIdRequest = SysIdSwerveTranslationTorqueCurrentFOC()
 
@@ -166,7 +166,7 @@ object SwerveDrive :
         AutoBuilder.configureHolonomic(
             { this.state.Pose }, // Supplier of current robot pose
             this::seedFieldRelative, // Consumer for seeding pose against auto
-            this::currentRobotChassisSpeeds,
+            { state.speeds },
             { speeds: ChassisSpeeds ->
                 this.setControl(autoRequest.withSpeeds(speeds))
             }, // Consumer of ChassisSpeeds to drive the robot
@@ -184,12 +184,7 @@ object SwerveDrive :
         )
     }
 
-    val currentRobotChassisSpeeds
-        get() = m_kinematics.toChassisSpeeds(*state.ModuleStates)
-
-    fun applyRequest(requestSupplier: () -> SwerveRequest): Command {
-        return run { this.setControl(requestSupplier()) }
-    }
+    fun applyRequest(requestSupplier: () -> SwerveRequest) = run { this.setControl(requestSupplier()) }
 
     private fun startSimThread() {
         m_lastSimTime = Utils.getCurrentTimeSeconds()

@@ -15,7 +15,7 @@ object CommandFactory {
         get() = Shooter.spinUp.alongWith(VarShootPrime())
 
     val intakeNote
-        get() = Feeder.intake.deadlineWith(Intake.intake).withName("Pick Up Note")
+        get() = Feeder.intake.deadlineWith(Intake.runIntake).withName("Pick Up Note")
 
     val autoPickupNote
         get() = intakeNote.deadlineWith(SwerveDrive.autoDriveToNote).withName("Auto Pickup Note")

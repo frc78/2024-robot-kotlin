@@ -13,8 +13,10 @@ import edu.wpi.first.math.geometry.Transform3d
 import edu.wpi.first.math.geometry.Translation3d
 import edu.wpi.first.math.numbers.N3
 import edu.wpi.first.networktables.NetworkTableInstance
+import edu.wpi.first.wpilibj.DriverStation
 import frc.team78.lib.inches
 import frc.team78.lib.unaryMinus
+import java.io.UncheckedIOException
 import kotlin.jvm.optionals.getOrNull
 import kotlin.math.PI
 import org.photonvision.PhotonCamera
@@ -26,7 +28,8 @@ object PoseEstimator {
     private val APRIL_TAG_FIELD_LAYOUT =
         try {
             AprilTagFields.k2024Crescendo.loadAprilTagLayoutField()
-        } catch (e: Exception) {
+        } catch (e: UncheckedIOException) {
+            DriverStation.reportError(e.message, false)
             AprilTagFieldLayout(emptyList(), 0.0, 0.0)
         }
     private val imu = Pigeon2(0)
@@ -41,20 +44,6 @@ object PoseEstimator {
             Rotation3d(PI, Math.toRadians(-25.0), Math.toRadians(-30.0)),
         )
 
-    private val PORT_CAM = PhotonCamera("PortCam")
-    private val PORT_CAM_POSE =
-        Transform3d(
-            Translation3d(4.465.inches, 10.205.inches, 21.274.inches),
-            Rotation3d(0.0, Math.toRadians(-25.0), Math.toRadians(30.0)),
-        )
-
-    private val STARBOARD_CAM = PhotonCamera("StarboardCam")
-    private val STARBOARD_CAM_POSE =
-        Transform3d(
-            Translation3d(4.465.inches, -10.205.inches, 21.274.inches),
-            Rotation3d(PI, Math.toRadians(-25.0), Math.toRadians(-30.0)),
-        )
-
     private val sternCamPoseEstimator =
         PhotonPoseEstimator(
             APRIL_TAG_FIELD_LAYOUT,
@@ -63,44 +52,19 @@ object PoseEstimator {
             STERN_CAM_POSE,
         )
 
-    private val portCamPoseEstimator =
-        PhotonPoseEstimator(
-            APRIL_TAG_FIELD_LAYOUT,
-            PhotonPoseEstimator.PoseStrategy.MULTI_TAG_PNP_ON_COPROCESSOR,
-            PORT_CAM,
-            PORT_CAM_POSE,
-        )
-
-    private val starboardCamPoseEstimator =
-        PhotonPoseEstimator(
-            APRIL_TAG_FIELD_LAYOUT,
-            PhotonPoseEstimator.PoseStrategy.MULTI_TAG_PNP_ON_COPROCESSOR,
-            STARBOARD_CAM,
-            STARBOARD_CAM_POSE,
-        )
-    private val visionPoseEstimators =
-        listOf(sternCamPoseEstimator, portCamPoseEstimator, starboardCamPoseEstimator)
-
     private val ntTable = NetworkTableInstance.getDefault().getTable("pose_estimator")
-    private val ntPublishers =
-        arrayOf(
-            ntTable.getStructTopic("SternPose", Pose2d.struct).publish(),
-            ntTable.getStructTopic("PortPose", Pose2d.struct).publish(),
-            ntTable.getStructTopic("StarboardPose", Pose2d.struct).publish(),
-        )
+    private val posePublisher = ntTable.getStructTopic("Pose", Pose2d.struct).publish()
 
     private val gyroPub = ntTable.getStructTopic("Gyro", Rotation2d.struct).publish()
 
     fun update() {
-        visionPoseEstimators.forEachIndexed { i, it ->
-            it.update().getOrNull()?.let {
-                val pose = it.estimatedPose.toPose2d()
+        sternCamPoseEstimator.update().getOrNull()?.let {
+            val pose = it.estimatedPose.toPose2d()
 
-                val standardDeviations = getEstimatedStandardDeviations(pose, it.targetsUsed)
-                SwerveDrive.addVisionMeasurement(pose, it.timestampSeconds, standardDeviations)
+            val standardDeviations = getEstimatedStandardDeviations(pose, it.targetsUsed)
+            SwerveDrive.addVisionMeasurement(pose, it.timestampSeconds, standardDeviations)
 
-                ntPublishers[i].set(pose)
-            }
+            posePublisher.set(pose)
         }
 
         gyroPub.set(imu.rotation2d)

@@ -15,6 +15,7 @@ import edu.wpi.first.wpilibj2.command.Commands
 import edu.wpi.first.wpilibj2.command.Commands.idle
 import edu.wpi.first.wpilibj2.command.SubsystemBase
 import edu.wpi.first.wpilibj2.command.sysid.SysIdRoutine
+import frc.team78.commands.command
 import frc.team78.lib.rotationsPerSecond
 import frc.team78.lib.volts
 
@@ -78,11 +79,9 @@ object Shooter : SubsystemBase() {
         bottomMotor.setControl(velocityControl)
     }
 
-    val spinUp
-        get() = runOnce { setSpeed(SHOT_RPM) }.andThen(idle()).withName("Spin Up")
+    val spinUp by command { runOnce { setSpeed(SHOT_RPM) }.andThen(idle()).withName("Spin Up") }
 
-    val stop
-        get() = runOnce { setSpeed(Units.RotationsPerSecond.of(0.0)) }.withName("Stop")
+    val stop by command { runOnce { setSpeed(Units.RotationsPerSecond.of(0.0)) }.withName("Stop") }
 
     val isAtSpeed: Boolean
         get() {
@@ -118,27 +117,27 @@ object Shooter : SubsystemBase() {
             ),
         )
 
-    val runSysId
-        get() =
-            Commands.sequence(
-                    runOnce {
-                        SignalLogger.start()
-                        topMotor.torqueCurrent.setUpdateFrequency(100.0)
-                        topMotor.position.setUpdateFrequency(100.0)
-                        topMotor.velocity.setUpdateFrequency(100.0)
-                        bottomMotor.velocity.setUpdateFrequency(100.0)
-                        bottomMotor.motorVoltage.setUpdateFrequency(100.0)
-                        bottomMotor.position.setUpdateFrequency(100.0)
-                    },
-                    Commands.waitSeconds(1.0),
-                    sysIdRoutine.dynamic(SysIdRoutine.Direction.kForward),
-                    Commands.waitSeconds(1.0),
-                    sysIdRoutine.dynamic(SysIdRoutine.Direction.kReverse),
-                    Commands.waitSeconds(1.0),
-                    sysIdRoutine.quasistatic(SysIdRoutine.Direction.kForward),
-                    Commands.waitSeconds(1.0),
-                    sysIdRoutine.quasistatic(SysIdRoutine.Direction.kReverse),
-                    runOnce { SignalLogger.stop() },
-                )
-                .withName("Shooter SysId")
+    val runSysId by command {
+        Commands.sequence(
+                runOnce {
+                    SignalLogger.start()
+                    topMotor.torqueCurrent.setUpdateFrequency(100.0)
+                    topMotor.position.setUpdateFrequency(100.0)
+                    topMotor.velocity.setUpdateFrequency(100.0)
+                    bottomMotor.velocity.setUpdateFrequency(100.0)
+                    bottomMotor.motorVoltage.setUpdateFrequency(100.0)
+                    bottomMotor.position.setUpdateFrequency(100.0)
+                },
+                Commands.waitSeconds(1.0),
+                sysIdRoutine.dynamic(SysIdRoutine.Direction.kForward),
+                Commands.waitSeconds(1.0),
+                sysIdRoutine.dynamic(SysIdRoutine.Direction.kReverse),
+                Commands.waitSeconds(1.0),
+                sysIdRoutine.quasistatic(SysIdRoutine.Direction.kForward),
+                Commands.waitSeconds(1.0),
+                sysIdRoutine.quasistatic(SysIdRoutine.Direction.kReverse),
+                runOnce { SignalLogger.stop() },
+            )
+            .withName("Shooter SysId")
+    }
 }

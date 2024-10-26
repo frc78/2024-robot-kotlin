@@ -50,14 +50,14 @@ fun CommandXboxController.configureDriverBindings() {
 
 fun CommandXboxController.configureOperatorBindings() {
 
-    a().whileTrue(CommandFactory.setUpAmp())
+    a().whileTrue(CommandFactory.setUpAmp)
     x().whileTrue(VarFeedPrime())
-    y().whileTrue(Elevator.goToClimb)
+    y().whileTrue(Elevator.goToClimb).onFalse(Elevator.climb)
 
-    rightBumper().whileTrue(CommandFactory.intakeNote())
+    rightBumper().whileTrue(CommandFactory.intakeNote)
     leftBumper().whileTrue(Feeder.eject)
 
-    leftTrigger().whileTrue(CommandFactory.prepareToShoot())
+    leftTrigger().whileTrue(CommandFactory.prepareToShoot)
     rightTrigger().whileTrue(Feeder.shoot)
 }
 

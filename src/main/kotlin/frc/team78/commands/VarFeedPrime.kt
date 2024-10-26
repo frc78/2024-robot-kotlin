@@ -17,7 +17,7 @@ import kotlin.math.cos
 import kotlin.math.sin
 import kotlin.math.sqrt
 
-class VarFeedPrime() : Command() {
+class VarFeedPrime : Command() {
 
     private var plopPose = Translation2d()
 
