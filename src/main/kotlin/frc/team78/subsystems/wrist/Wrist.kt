@@ -18,6 +18,7 @@ import edu.wpi.first.wpilibj.smartdashboard.SmartDashboard
 import edu.wpi.first.wpilibj2.command.Commands
 import edu.wpi.first.wpilibj2.command.SubsystemBase
 import edu.wpi.first.wpilibj2.command.sysid.SysIdRoutine
+import frc.team78.commands.command
 import frc.team78.lib.rotations
 import frc.team78.lib.volts
 
@@ -25,8 +26,6 @@ object Wrist : SubsystemBase("Wrist") {
 
     init {
         SmartDashboard.putData(this)
-        SmartDashboard.putData(coast)
-        SmartDashboard.putData(brake)
     }
 
     private const val MOTOR_CAN_ID = 13
@@ -81,23 +80,9 @@ object Wrist : SubsystemBase("Wrist") {
     val position: Double
         get() = motor.position.value
 
-    val stow
-        get() = setTargetCommand(STOW_ANGLE)
+    val stow by command { setTargetCommand(STOW_ANGLE) }
 
-    val ampPosition
-        get() = setTargetCommand(AMP_ANGLE)
-
-    val coast
-        get() =
-            runOnce { motor.setNeutralMode(NeutralModeValue.Coast) }
-                .ignoringDisable(true)
-                .withName("Coast Wrist")
-
-    val brake
-        get() =
-            runOnce { motor.setNeutralMode(NeutralModeValue.Brake) }
-                .ignoringDisable(true)
-                .withName("Brake Wrist")
+    val ampPosition by command { setTargetCommand(AMP_ANGLE) }
 
     private var zeroed = false
 
@@ -124,22 +109,22 @@ object Wrist : SubsystemBase("Wrist") {
             ),
         )
 
-    val runSysId
-        get() =
-            Commands.sequence(
-                runOnce(SignalLogger::start),
-                sysIdRoutine.dynamic(SysIdRoutine.Direction.kForward).until {
-                    motor.fault_ForwardSoftLimit.value
-                },
-                sysIdRoutine.dynamic(SysIdRoutine.Direction.kReverse).until {
-                    motor.fault_ReverseSoftLimit.value
-                },
-                sysIdRoutine.quasistatic(SysIdRoutine.Direction.kForward).until {
-                    motor.fault_ForwardSoftLimit.value
-                },
-                sysIdRoutine.quasistatic(SysIdRoutine.Direction.kReverse).until {
-                    motor.fault_ReverseSoftLimit.value
-                },
-                runOnce(SignalLogger::stop),
-            )
+    val runSysId by command {
+        Commands.sequence(
+            runOnce(SignalLogger::start),
+            sysIdRoutine.dynamic(SysIdRoutine.Direction.kForward).until {
+                motor.fault_ForwardSoftLimit.value
+            },
+            sysIdRoutine.dynamic(SysIdRoutine.Direction.kReverse).until {
+                motor.fault_ReverseSoftLimit.value
+            },
+            sysIdRoutine.quasistatic(SysIdRoutine.Direction.kForward).until {
+                motor.fault_ForwardSoftLimit.value
+            },
+            sysIdRoutine.quasistatic(SysIdRoutine.Direction.kReverse).until {
+                motor.fault_ReverseSoftLimit.value
+            },
+            runOnce(SignalLogger::stop),
+        )
+    }
 }

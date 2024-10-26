@@ -85,12 +85,9 @@ object Robot : TimedRobot() {
             .and(RobotModeTriggers.teleop())
             .onTrue(operator.shortRumble(RumbleType.kBothRumble))
 
-
         RobotModeTriggers.disabled()
             .and { DriverStation.isDSAttached() }
-            .onTrue(LED.indicateDisabled())
-
-        RobotModeTriggers.teleop().onTrue(Elevator.brake.alongWith(Wrist.brake))
+            .onTrue(LED.indicateDisabled)
 
         addPeriodic(PoseEstimator::update, 0.02, 0.015)
 
@@ -145,6 +142,6 @@ object Robot : TimedRobot() {
     }
 
     private fun CommandXboxController.shortRumble(type: RumbleType) =
-            Commands.startEnd({ hid.setRumble(type, 1.0) }, { hid.setRumble(type, 0.0) })
-                .withTimeout(0.3)
+        Commands.startEnd({ hid.setRumble(type, 1.0) }, { hid.setRumble(type, 0.0) })
+            .withTimeout(0.3)
 }

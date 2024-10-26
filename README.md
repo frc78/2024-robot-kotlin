@@ -51,12 +51,12 @@ Constants for a subsystem should be declared inside the object
 Commands should be created using the factory methods provided by `SubsystemBase` whenever possible. This keeps the
 commands inside the subsystem they control, as well as keeping code small.
 
-Remember that a new command must be created any time it is bound to a trigger, so you need to use a getter to recompute
-each time the command is accesed
+Remember that a new command must be created any time it is bound to a trigger, so it is recommend to use the `command`
+delegate to help ensure this functionality. The delegate is provided by the `CommandDelegate` class in the
+`frc.team78.commands` package
 
 ```kotlin
-val action
-    get() = startEnd({}, {})
+val action by command { startEnd({}, {}) }
 ```
 
 ## RobotContainer

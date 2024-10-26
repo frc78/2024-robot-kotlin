@@ -129,11 +129,10 @@ object Elevator : SubsystemBase("Elevator") {
             closedLoopError.setUpdateFrequency(100.0)
         }
 
-    init {
+    val follower =
         TalonFX(FOLLOWER_MOTOR_ID, "*").apply {
             setControl(DifferentialFollower(LEADER_MOTOR_ID, true))
         }
-    }
 
     private val motionMagicRequest = DifferentialMotionMagicVoltage(0.0, 0.0)
 
@@ -214,7 +213,10 @@ object Elevator : SubsystemBase("Elevator") {
                 SignalLogger.writeString("state", it.toString())
             },
             SysIdRoutine.Mechanism(
-                { voltage -> leader.setVoltage(voltage.volts) },
+                { voltage ->
+                    leader.setVoltage(voltage.volts)
+                    follower.setVoltage(voltage.volts)
+                },
                 null,
                 this,
                 "elevator",
