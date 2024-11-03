@@ -10,7 +10,6 @@ import com.pathplanner.lib.controllers.PPHolonomicDriveController
 import edu.wpi.first.hal.FRCNetComm.tInstances.kLanguage_Kotlin
 import edu.wpi.first.hal.FRCNetComm.tResourceType.kResourceType_Language
 import edu.wpi.first.hal.HAL
-import edu.wpi.first.math.geometry.Rotation2d
 import edu.wpi.first.net.PortForwarder
 import edu.wpi.first.wpilibj.DriverStation
 import edu.wpi.first.wpilibj.GenericHID.RumbleType
@@ -27,14 +26,14 @@ import edu.wpi.first.wpilibj2.command.button.RobotModeTriggers
 import edu.wpi.first.wpilibj2.command.button.Trigger
 import frc.team78.commands.CommandFactory
 import frc.team78.commands.VarShootPrime
-import frc.team78.lib.*
+import frc.team78.lib.SPEAKER_POSE
 import frc.team78.subsystems.chassis.*
 import frc.team78.subsystems.elevator.Elevator
 import frc.team78.subsystems.feedback.LED
 import frc.team78.subsystems.feeder.Feeder
 import frc.team78.subsystems.shooter.Shooter
 import frc.team78.subsystems.wrist.Wrist
-import java.util.*
+import java.util.Optional
 
 object Robot : TimedRobot() {
     init {
@@ -99,13 +98,12 @@ object Robot : TimedRobot() {
 
     init {
         PPHolonomicDriveController.setRotationTargetOverride {
-            if (!Feeder.hasNote) {
-                Optional.empty()
-            } else {
-                val angle =
-                    (SPEAKER_POSE - SwerveDrive.estimatedPose.translation).angle +
-                        Rotation2d.fromDegrees(180.0)
+            if (Feeder.hasNote) {
+                // Negative because shooter faces backwards on the robot
+                val angle = -(SPEAKER_POSE - SwerveDrive.estimatedPose.translation).angle
                 Optional.of(angle)
+            } else {
+                Optional.empty()
             }
         }
         NamedCommands.registerCommands(

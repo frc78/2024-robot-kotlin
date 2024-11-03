@@ -2,26 +2,29 @@ package frc.team78.subsystems.chassis
 
 import com.ctre.phoenix6.SignalLogger
 import com.ctre.phoenix6.Utils
-import com.ctre.phoenix6.mechanisms.swerve.SwerveDrivetrain
-import com.ctre.phoenix6.mechanisms.swerve.SwerveModule
-import com.ctre.phoenix6.mechanisms.swerve.SwerveRequest
-import com.ctre.phoenix6.mechanisms.swerve.SwerveRequest.ForwardReference.RedAlliance
-import com.ctre.phoenix6.mechanisms.swerve.utility.PhoenixPIDController
+import com.ctre.phoenix6.swerve.SwerveDrivetrain
+import com.ctre.phoenix6.swerve.SwerveModule
+import com.ctre.phoenix6.swerve.SwerveRequest
+import com.ctre.phoenix6.swerve.SwerveRequest.ForwardReferenceValue.RedAlliance
+import com.ctre.phoenix6.swerve.utility.PhoenixPIDController
 import com.pathplanner.lib.auto.AutoBuilder
-import com.pathplanner.lib.util.HolonomicPathFollowerConfig
-import com.pathplanner.lib.util.PIDConstants
-import com.pathplanner.lib.util.ReplanningConfig
+import com.pathplanner.lib.config.ModuleConfig
+import com.pathplanner.lib.config.PIDConstants
+import com.pathplanner.lib.config.RobotConfig
+import com.pathplanner.lib.controllers.PPHolonomicDriveController
 import edu.wpi.first.math.controller.PIDController
+import edu.wpi.first.math.geometry.Pose2d
 import edu.wpi.first.math.geometry.Rotation2d
 import edu.wpi.first.math.kinematics.ChassisSpeeds
+import edu.wpi.first.math.system.plant.DCMotor
 import edu.wpi.first.networktables.NetworkTableInstance
 import edu.wpi.first.units.Units.Amps
+import edu.wpi.first.units.Units.Pounds
 import edu.wpi.first.wpilibj.DriverStation
 import edu.wpi.first.wpilibj.DriverStation.Alliance
 import edu.wpi.first.wpilibj.Notifier
 import edu.wpi.first.wpilibj.RobotController
 import edu.wpi.first.wpilibj2.command.Commands
-import edu.wpi.first.wpilibj2.command.PIDCommand
 import edu.wpi.first.wpilibj2.command.Subsystem
 import edu.wpi.first.wpilibj2.command.sysid.SysIdRoutine
 import frc.team78.commands.command
@@ -117,7 +120,11 @@ object SwerveDrive :
             SysIdRoutine.Config(null, 4.volts, null) {
                 SignalLogger.writeString("state", it.toString())
             },
-            SysIdRoutine.Mechanism({ setControl(rotationSysIdRequest.withVolts(it)) }, null, this),
+            SysIdRoutine.Mechanism(
+                { setControl(rotationSysIdRequest.withRotationalRate(it.magnitude())) },
+                null,
+                this,
+            ),
         )
 
     private val sysIdRoutineSteer =
@@ -163,19 +170,27 @@ object SwerveDrive :
     private fun configurePathPlanner() {
         val driveBaseRadius = m_moduleLocations.maxOf { it.norm }
 
-        AutoBuilder.configureHolonomic(
+        AutoBuilder.configure(
             { this.state.Pose }, // Supplier of current robot pose
-            this::seedFieldRelative, // Consumer for seeding pose against auto
-            { state.speeds },
+            { pose: Pose2d -> seedFieldRelative(pose) }, // Consumer for seeding pose against auto
+            { state.Speeds },
             { speeds: ChassisSpeeds ->
                 this.setControl(autoRequest.withSpeeds(speeds))
             }, // Consumer of ChassisSpeeds to drive the robot
-            HolonomicPathFollowerConfig(
-                TRANSLATION_PID,
-                ROTATION_PID,
-                TunerConstants.SPEED_AT_12_VOLTS_MPS,
+            PPHolonomicDriveController(TRANSLATION_PID, ROTATION_PID),
+            RobotConfig(
+                Pounds.of(135.0).kilograms,
+                0.0,
+                ModuleConfig(
+                    2.inches.meters,
+                    TunerConstants.SPEED_AT_12_VOLTS_MPS,
+                    1.1,
+                    DCMotor.getFalcon500(1),
+                    50.0,
+                    1,
+                ),
                 driveBaseRadius,
-                ReplanningConfig(),
+                driveBaseRadius,
             ),
             {
                 DriverStation.getAlliance().orElse(Alliance.Blue) == Alliance.Red
@@ -184,7 +199,9 @@ object SwerveDrive :
         )
     }
 
-    fun applyRequest(requestSupplier: () -> SwerveRequest) = run { this.setControl(requestSupplier()) }
+    fun applyRequest(requestSupplier: () -> SwerveRequest) = run {
+        this.setControl(requestSupplier())
+    }
 
     private fun startSimThread() {
         m_lastSimTime = Utils.getCurrentTimeSeconds()
@@ -210,24 +227,16 @@ object SwerveDrive :
     private val rotationController = PIDController(0.15, 0.0, 0.0015)
 
     /** Command to drive into the note detected by the camera */
-    val autoDriveToNote =
-        PIDCommand(
-            rotationController,
-            noteDetectionYaw,
-            0.0,
-            {
-                setControl(
-                    driveRequest.apply {
-                        VelocityX = 2.0
-                        VelocityY = 0.0
-                        RotationalRate = it
-                    }
-                )
-            },
-            this,
-        )
+    val autoDriveToNote by command {
+        applyRequest {
+            driveRequest
+                .withVelocityX(2.0)
+                .withRotationalRate(rotationController.calculate(noteDetectionYaw.get()))
+        }
+    }
 
-    val estimatedPose = m_odometry.estimatedPosition
+    val estimatedPose
+        get() = this.state.Pose
 
     override fun periodic() {
         /* Periodically try to apply the operator perspective */

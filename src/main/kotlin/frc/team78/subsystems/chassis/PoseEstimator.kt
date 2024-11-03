@@ -15,7 +15,6 @@ import edu.wpi.first.math.numbers.N3
 import edu.wpi.first.networktables.NetworkTableInstance
 import edu.wpi.first.wpilibj.DriverStation
 import frc.team78.lib.inches
-import frc.team78.lib.unaryMinus
 import java.io.UncheckedIOException
 import kotlin.jvm.optionals.getOrNull
 import kotlin.math.PI
@@ -27,7 +26,7 @@ object PoseEstimator {
 
     private val APRIL_TAG_FIELD_LAYOUT =
         try {
-            AprilTagFields.k2024Crescendo.loadAprilTagLayoutField()
+            AprilTagFieldLayout.loadField(AprilTagFields.k2024Crescendo)
         } catch (e: UncheckedIOException) {
             DriverStation.reportError(e.message, false)
             AprilTagFieldLayout(emptyList(), 0.0, 0.0)

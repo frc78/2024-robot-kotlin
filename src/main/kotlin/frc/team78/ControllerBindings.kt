@@ -11,7 +11,6 @@ import frc.team78.subsystems.chassis.SwerveDrive
 import frc.team78.subsystems.elevator.Elevator
 import frc.team78.subsystems.feeder.Feeder
 import frc.team78.subsystems.shooter.Shooter
-import frc.team78.subsystems.wrist.Wrist
 
 fun CommandXboxController.configureDriverBindings() {
     val baseSwerveDrive = BaseSwerveDrive(this.hid, SwerveDrive.MOTION_LIMITS)
@@ -65,7 +64,6 @@ fun CommandXboxController.configureSysIdBindings() {
     a().whileTrue(Shooter.runSysId)
     b().whileTrue(SwerveDrive.translationSysId)
     x().whileTrue(Elevator.runSysId)
-    y().whileTrue(Wrist.runSysId)
     leftBumper().whileTrue(SwerveDrive.rotationSysId)
     rightBumper().whileTrue(SwerveDrive.steerSysId)
 }

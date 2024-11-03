@@ -8,6 +8,8 @@ import edu.wpi.first.math.util.Units.inchesToMeters
 import edu.wpi.first.units.Units.RotationsPerSecond
 import edu.wpi.first.wpilibj2.command.Command
 import frc.team78.lib.PLOP_POSE
+import frc.team78.lib.meters
+import frc.team78.lib.radians
 import frc.team78.subsystems.chassis.SwerveDrive
 import frc.team78.subsystems.elevator.Elevator
 import frc.team78.subsystems.shooter.Shooter
@@ -39,13 +41,13 @@ class VarFeedPrime : Command() {
         distanceToTarget *= DIST_FUDGE_FACTOR
 
         // double distanceToTarget = lInput.getDouble(3);
-        var heightToTarget: Double = SHOOTER_POSITION.y - inchesToMeters(Elevator.position)
+        var heightToTarget: Double = SHOOTER_POSITION.y - Elevator.position.meters
         // Inverts the heigh as we are shooting from the robot to the ground, but the calculations
         // are
         // always done from (0, 0) so we use this as our offset
         heightToTarget = -heightToTarget
 
-        val theta = Math.toRadians(Wrist.position)
+        val theta = Wrist.position.radians
 
         val calcVel = calcVel(distanceToTarget, heightToTarget, theta)
         // Safety for NaN, probably should put this in the setSpeed() itself though

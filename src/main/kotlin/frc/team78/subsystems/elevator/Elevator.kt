@@ -10,9 +10,8 @@ import com.ctre.phoenix6.signals.*
 import edu.wpi.first.math.system.plant.DCMotor
 import edu.wpi.first.math.util.Units.inchesToMeters
 import edu.wpi.first.math.util.Units.metersToInches
-import edu.wpi.first.units.Distance
-import edu.wpi.first.units.Measure
 import edu.wpi.first.units.Units.*
+import edu.wpi.first.units.measure.Distance
 import edu.wpi.first.wpilibj.RobotController
 import edu.wpi.first.wpilibj.simulation.BatterySim
 import edu.wpi.first.wpilibj.simulation.ElevatorSim
@@ -25,6 +24,7 @@ import edu.wpi.first.wpilibj2.command.SubsystemBase
 import edu.wpi.first.wpilibj2.command.sysid.SysIdRoutine
 import frc.team78.commands.command
 import frc.team78.lib.inches
+import frc.team78.lib.radians
 import frc.team78.lib.volts
 
 /**
@@ -65,10 +65,10 @@ object Elevator : SubsystemBase("Elevator") {
      * Pitch Diameter is 1.29 inches. This measurement is taken from the official drawing of the
      * part https://www.revrobotics.com/content/docs/REV-21-2016-DR.pdf
      */
-    private val DRUM_DIAMETER = Inches.of(1.29)
+    private val DRUM_RADIUS = Inches.of(1.29).divide(2.0)
 
     // Converts 1 rotation of the motor to inches of travel of the elevator
-    private val POSITION_CONVERSION_FACTOR = GEAR_RATIO / (DRUM_DIAMETER.inches * Math.PI)
+    private val POSITION_CONVERSION_FACTOR = GEAR_RATIO / (DRUM_RADIUS.inches * Math.PI)
 
     // Initialize the SmartDashboard with the elevator commands, and details about this subsystem
     init {
@@ -94,7 +94,7 @@ object Elevator : SubsystemBase("Elevator") {
         TalonFX(LEADER_MOTOR_ID, "*").apply {
             val leaderMotorConfiguration =
                 TalonFXConfiguration().apply {
-                    Feedback.SensorToMechanismRatio = POSITION_CONVERSION_FACTOR
+                    Feedback.SensorToMechanismRatio = GEAR_RATIO
                     SoftwareLimitSwitch.ForwardSoftLimitEnable = true
                     // Do not allow the motor to move upwards until after zeroing
                     SoftwareLimitSwitch.ForwardSoftLimitThreshold = 0.0
@@ -140,8 +140,8 @@ object Elevator : SubsystemBase("Elevator") {
     private var zeroed = false
 
     /** Position of the elevator in inches */
-    val position: Double
-        get() = leader.position.value
+    val position: Distance
+        get() = DRUM_RADIUS * leader.position.value.radians
 
     val isAtGoal
         get() = leader.closedLoopError.value < K_TOLERANCE
@@ -194,14 +194,11 @@ object Elevator : SubsystemBase("Elevator") {
 
     val climb by command { goToPosition(STOW_HEIGHT, true).withName("climb") }
 
-    private fun goToPosition(
-        position: Measure<Distance>,
-        brakeOnNeutral: Boolean = false,
-    ): Command =
+    private fun goToPosition(position: Distance, brakeOnNeutral: Boolean = false): Command =
         runOnce {
                 leader.setControl(
                     motionMagicRequest
-                        .withTargetPosition(position.inches)
+                        .withTargetPosition(Radians.of(position.inches / DRUM_RADIUS.inches))
                         .withOverrideBrakeDurNeutral(brakeOnNeutral)
                 )
             }
@@ -243,7 +240,7 @@ object Elevator : SubsystemBase("Elevator") {
     }
 
     override fun periodic() {
-        SmartDashboard.putNumber("Elevator Position", position)
+        SmartDashboard.putNumber("Elevator Position", position.inches)
     }
 
     override fun simulationPeriodic() {

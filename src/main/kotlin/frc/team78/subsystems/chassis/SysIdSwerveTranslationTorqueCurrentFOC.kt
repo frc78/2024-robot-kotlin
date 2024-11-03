@@ -1,32 +1,29 @@
 package frc.team78.subsystems.chassis
 
 import com.ctre.phoenix6.StatusCode
+import com.ctre.phoenix6.controls.PositionVoltage
 import com.ctre.phoenix6.controls.TorqueCurrentFOC
-import com.ctre.phoenix6.mechanisms.swerve.SwerveModule
-import com.ctre.phoenix6.mechanisms.swerve.SwerveRequest
-import edu.wpi.first.math.geometry.Rotation2d
-import edu.wpi.first.units.Current
-import edu.wpi.first.units.Measure
-import edu.wpi.first.units.MutableMeasure.mutable
+import com.ctre.phoenix6.swerve.SwerveDrivetrain
+import com.ctre.phoenix6.swerve.SwerveModule
+import com.ctre.phoenix6.swerve.SwerveRequest
 import edu.wpi.first.units.Units.Amps
+import edu.wpi.first.units.measure.Current
 import frc.team78.lib.amps
 
 class SysIdSwerveTranslationTorqueCurrentFOC : SwerveRequest {
     /* Voltage to apply to drive wheels. This is final to enforce mutating the value */
-    val torqueCurrentToApply = mutable(Amps.of(0.0))
+    val torqueCurrentToApply = Amps.of(0.0).mutableCopy()
 
     /* Local reference to a voltage request to drive the motors with */
-    private val torqueCurrentRequest = TorqueCurrentFOC(0.0)
+    private val driveRequest = TorqueCurrentFOC(0.0)
+    private val steerRequest = PositionVoltage(0.0)
 
     override fun apply(
-        parameters: SwerveRequest.SwerveControlRequestParameters,
+        parameters: SwerveDrivetrain.SwerveControlParameters,
         vararg modulesToApply: SwerveModule,
     ): StatusCode {
         for (module in modulesToApply) {
-            module.applyCharacterization(
-                Rotation2d.fromDegrees(0.0),
-                torqueCurrentRequest.withOutput(torqueCurrentToApply.amps),
-            )
+            module.apply(driveRequest.withOutput(torqueCurrentToApply.amps), steerRequest)
         }
         return StatusCode.OK
     }
@@ -37,7 +34,7 @@ class SysIdSwerveTranslationTorqueCurrentFOC : SwerveRequest {
      * @param current Amps to apply
      * @return this request
      */
-    fun withCurrent(current: Measure<Current>): SysIdSwerveTranslationTorqueCurrentFOC {
+    fun withCurrent(current: Current): SysIdSwerveTranslationTorqueCurrentFOC {
         torqueCurrentToApply.mut_replace(current)
         return this
     }

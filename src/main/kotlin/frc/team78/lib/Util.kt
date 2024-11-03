@@ -1,28 +1,34 @@
 package frc.team78.lib
 
 import edu.wpi.first.units.*
-import edu.wpi.first.units.Unit
 import edu.wpi.first.units.Units.Amps
 import edu.wpi.first.units.Units.Degrees
 import edu.wpi.first.units.Units.Inches
+import edu.wpi.first.units.Units.Kilograms
 import edu.wpi.first.units.Units.Meters
 import edu.wpi.first.units.Units.MetersPerSecond
+import edu.wpi.first.units.Units.MetersPerSecondPerSecond
+import edu.wpi.first.units.Units.RPM
 import edu.wpi.first.units.Units.Radians
 import edu.wpi.first.units.Units.RadiansPerSecond
+import edu.wpi.first.units.Units.RadiansPerSecondPerSecond
 import edu.wpi.first.units.Units.Rotations
 import edu.wpi.first.units.Units.RotationsPerSecond
 import edu.wpi.first.units.Units.Seconds
 import edu.wpi.first.units.Units.Volts
-
-/**
- * Helper extension function to use the negative operator on a Measure instance
- *
- * Example: -Volts.of(1)
- */
-operator fun <U : Unit<U>> Measure<U>.unaryMinus(): Measure<U> = this.negate()
+import edu.wpi.first.units.measure.Angle
+import edu.wpi.first.units.measure.AngularAcceleration
+import edu.wpi.first.units.measure.AngularVelocity
+import edu.wpi.first.units.measure.Current
+import edu.wpi.first.units.measure.Distance
+import edu.wpi.first.units.measure.LinearAcceleration
+import edu.wpi.first.units.measure.LinearVelocity
+import edu.wpi.first.units.measure.Mass
+import edu.wpi.first.units.measure.Time
+import edu.wpi.first.units.measure.Voltage
 
 /** Helper function to use the division operator on a Measure instance */
-operator fun <U : Unit<U>> Measure<U>.div(divisor: Number): Measure<U> =
+operator fun <U : edu.wpi.first.units.Unit> Measure<U>.div(divisor: Number): Measure<U> =
     this.divide(divisor.toDouble())
 
 /**
@@ -30,42 +36,59 @@ operator fun <U : Unit<U>> Measure<U>.div(divisor: Number): Measure<U> =
  *
  * Usage: 5.inches
  */
-val Number.inches: Measure<Distance>
+val Number.inches: Distance
     get() = Inches.of(this.toDouble())
-val Number.meters: Measure<Distance>
+val Number.meters: Distance
     get() = Meters.of(this.toDouble())
-val Number.seconds: Measure<Time>
+val Number.seconds: Time
     get() = Seconds.of(this.toDouble())
-val Number.metersPerSecond: Measure<Velocity<Distance>>
+val Number.metersPerSecond: LinearVelocity
     get() = MetersPerSecond.of(this.toDouble())
-val Number.volts: Measure<Voltage>
+val Number.volts: Voltage
     get() = Volts.of(this.toDouble())
-val Number.amps: Measure<Current>
+val Number.amps: Current
     get() = Amps.of(this.toDouble())
-val Number.metersPerSecondPerSecond: Measure<Velocity<Velocity<Distance>>>
-    get() = MetersPerSecond.of(this.toDouble()).per(1.seconds)
-val Number.radiansPerSecond: Measure<Velocity<Angle>>
+val Number.metersPerSecondPerSecond: LinearAcceleration
+    get() = MetersPerSecondPerSecond.of(this.toDouble())
+val Number.radiansPerSecond: AngularVelocity
     get() = RadiansPerSecond.of(this.toDouble())
-val Number.radiansPerSecondPerSecond: Measure<Velocity<Velocity<Angle>>>
-    get() = RadiansPerSecond.of(this.toDouble()).per(1.seconds)
+val Number.radiansPerSecondPerSecond: AngularAcceleration
+    get() = RadiansPerSecondPerSecond.of(this.toDouble())
 val Number.rpm
-    get() = Units.RPM.of(this.toDouble())
-val Number.degrees: Measure<Angle>
+    get() = RPM.of(this.toDouble())
+val Number.degrees: Angle
     get() = Degrees.of(this.toDouble())
 
-val Measure<Distance>.inches
+val Distance.inches
     get() = this.`in`(Inches)
-val Measure<Angle>.rotations
+val Distance.meters
+    get() = this.`in`(Meters)
+val Angle.rotations
     get() = this.`in`(Rotations)
-val Measure<Velocity<Distance>>.metersPerSecond
+val LinearVelocity.metersPerSecond
     get() = this.`in`(MetersPerSecond)
-val Measure<Velocity<Angle>>.radiansPerSecond
+val AngularVelocity.radiansPerSecond
     get() = this.`in`(RadiansPerSecond)
-val Measure<Velocity<Angle>>.rotationsPerSecond
+val AngularVelocity.rotationsPerSecond
     get() = this.`in`(RotationsPerSecond)
-val Measure<Voltage>.volts
+val AngularVelocity.rpm
+    get() = this.`in`(RPM)
+val Voltage.volts
     get() = this.`in`(Volts)
-val Measure<Angle>.radians
+val Angle.radians
     get() = this.`in`(Radians)
-val Measure<Current>.amps
+val Angle.degrees
+    get() = this.`in`(Degrees)
+val Current.amps
     get() = this.`in`(Amps)
+val Mass.kilograms
+    get() = this.`in`(Kilograms)
+
+operator fun AngularVelocity.div(divisor: Number): AngularVelocity {
+    return this.divide(divisor.toDouble())
+}
+
+fun Angle.toDistance(radius: Distance): Distance = radius * this.radians
+
+fun AngularVelocity.toLinearVelocity(radius: Distance): LinearVelocity =
+    MetersPerSecond.of(radiansPerSecond * radius.meters)

@@ -7,16 +7,15 @@ import com.ctre.phoenix6.controls.TorqueCurrentFOC
 import com.ctre.phoenix6.controls.VelocityVoltage
 import com.ctre.phoenix6.hardware.TalonFX
 import edu.wpi.first.networktables.NetworkTableInstance
-import edu.wpi.first.units.Angle
-import edu.wpi.first.units.Measure
 import edu.wpi.first.units.Units
-import edu.wpi.first.units.Velocity
+import edu.wpi.first.units.measure.AngularVelocity
 import edu.wpi.first.wpilibj2.command.Commands
 import edu.wpi.first.wpilibj2.command.Commands.idle
 import edu.wpi.first.wpilibj2.command.SubsystemBase
 import edu.wpi.first.wpilibj2.command.sysid.SysIdRoutine
 import frc.team78.commands.command
 import frc.team78.lib.rotationsPerSecond
+import frc.team78.lib.rpm
 import frc.team78.lib.volts
 
 object Shooter : SubsystemBase() {
@@ -69,7 +68,7 @@ object Shooter : SubsystemBase() {
         }
     private val bottomVelocity = bottomMotor.velocity
 
-    fun setSpeed(speed: Measure<Velocity<Angle>>) {
+    fun setSpeed(speed: AngularVelocity) {
         if (slowShot.get()) {
             velocityControl.Velocity = SLOW_SHOT_RPM.rotationsPerSecond
         } else {
@@ -90,13 +89,13 @@ object Shooter : SubsystemBase() {
             return reference > 0 && error < reference * 0.1
         }
 
-    val velocity
-        get() = (topVelocity.value * 60 + bottomVelocity.value * 60) / 2
+    val velocity: AngularVelocity
+        get() = (topVelocity.value + bottomVelocity.value).divide(2.0)
 
     override fun periodic() {
         BaseStatusSignal.waitForAll(0.005, topVelocity, bottomVelocity)
-        topVelocityPub.set(topVelocity.value * 60)
-        bottomVelocityPub.set(bottomVelocity.value)
+        topVelocityPub.set(topVelocity.value.rpm)
+        bottomVelocityPub.set(bottomVelocity.value.rpm)
     }
 
     private val sysIdVoltage = TorqueCurrentFOC(0.0)

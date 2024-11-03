@@ -11,31 +11,30 @@ import frc.team78.subsystems.wrist.Wrist
 import kotlin.jvm.optionals.getOrNull
 
 object CommandFactory {
-    val prepareToShoot
-        get() = Shooter.spinUp.alongWith(VarShootPrime())
+    val prepareToShoot by command { Shooter.spinUp.alongWith(VarShootPrime()) }
 
-    val intakeNote
-        get() = Feeder.intake.deadlineWith(Intake.runIntake).withName("Pick Up Note")
+    val intakeNote by command {
+        Feeder.intake.deadlineFor(Intake.runIntake).withName("Pick Up Note")
+    }
 
-    val autoPickupNote
-        get() = intakeNote.deadlineWith(SwerveDrive.autoDriveToNote).withName("Auto Pickup Note")
+    val autoPickupNote by command {
+        intakeNote.deadlineFor(SwerveDrive.autoDriveToNote).withName("Auto Pickup Note")
+    }
 
-    val setUpAmp
-        get() = Wrist.ampPosition.alongWith(Elevator.goToAmp).withName("Amp")
+    val setUpAmp by command { Wrist.ampPosition.alongWith(Elevator.goToAmp).withName("Amp") }
 
-    val shootNote
-        get() = Commands.waitUntil { Shooter.isAtSpeed }.andThen(Feeder.shoot)
+    val shootNote by command { Commands.waitUntil { Shooter.isAtSpeed }.andThen(Feeder.shoot) }
 
     /** Auto pickup note, but don't cross the midline. Used during auto */
-    val autoPickupNoteWithMidlineStop
-        get() =
-            autoPickupNote
-                .until {
-                    when (DriverStation.getAlliance().getOrNull()) {
-                        DriverStation.Alliance.Blue ->
-                            SwerveDrive.estimatedPose.translation.x > 8.25
-                        else -> SwerveDrive.estimatedPose.translation.x < 8.25
-                    }
+    val autoPickupNoteWithMidlineStop by command {
+        autoPickupNote
+            .until {
+                when (DriverStation.getAlliance().getOrNull()) {
+                    DriverStation.Alliance.Blue -> SwerveDrive.estimatedPose.translation.x > 8.25
+
+                    else -> SwerveDrive.estimatedPose.translation.x < 8.25
                 }
-                .withName("Drive to Note")
+            }
+            .withName("Drive to Note")
+    }
 }
