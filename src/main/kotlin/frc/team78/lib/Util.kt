@@ -1,8 +1,9 @@
 package frc.team78.lib
 
-import edu.wpi.first.units.*
+import edu.wpi.first.units.Measure
 import edu.wpi.first.units.Units.Amps
 import edu.wpi.first.units.Units.Degrees
+import edu.wpi.first.units.Units.Hertz
 import edu.wpi.first.units.Units.Inches
 import edu.wpi.first.units.Units.Kilograms
 import edu.wpi.first.units.Units.Meters
@@ -20,7 +21,9 @@ import edu.wpi.first.units.measure.Angle
 import edu.wpi.first.units.measure.AngularAcceleration
 import edu.wpi.first.units.measure.AngularVelocity
 import edu.wpi.first.units.measure.Current
+import edu.wpi.first.units.measure.Dimensionless
 import edu.wpi.first.units.measure.Distance
+import edu.wpi.first.units.measure.Frequency
 import edu.wpi.first.units.measure.LinearAcceleration
 import edu.wpi.first.units.measure.LinearVelocity
 import edu.wpi.first.units.measure.Mass
@@ -50,6 +53,10 @@ val Number.amps: Current
     get() = Amps.of(this.toDouble())
 val Number.metersPerSecondPerSecond: LinearAcceleration
     get() = MetersPerSecondPerSecond.of(this.toDouble())
+val Number.radians: Angle
+    get() = Radians.of(this.toDouble())
+val Number.rotations: Angle
+    get() = Rotations.of(this.toDouble())
 val Number.radiansPerSecond: AngularVelocity
     get() = RadiansPerSecond.of(this.toDouble())
 val Number.radiansPerSecondPerSecond: AngularAcceleration
@@ -58,6 +65,8 @@ val Number.rpm
     get() = RPM.of(this.toDouble())
 val Number.degrees: Angle
     get() = Degrees.of(this.toDouble())
+val Number.hertz: Frequency
+    get() = Hertz.of(this.toDouble())
 
 val Distance.inches
     get() = this.`in`(Inches)
@@ -83,10 +92,8 @@ val Current.amps
     get() = this.`in`(Amps)
 val Mass.kilograms
     get() = this.`in`(Kilograms)
-
-operator fun AngularVelocity.div(divisor: Number): AngularVelocity {
-    return this.divide(divisor.toDouble())
-}
+val Dimensionless.radians: Angle
+    get() = Radians.of(this.magnitude())
 
 fun Angle.toDistance(radius: Distance): Distance = radius * this.radians
 

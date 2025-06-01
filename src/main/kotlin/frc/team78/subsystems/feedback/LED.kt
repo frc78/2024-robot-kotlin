@@ -1,9 +1,11 @@
 package frc.team78.subsystems.feedback
 
-import com.ctre.phoenix.led.CANdle
-import com.ctre.phoenix.led.CANdleConfiguration
-import com.ctre.phoenix.led.ColorFlowAnimation
-import com.ctre.phoenix.led.StrobeAnimation
+import com.ctre.phoenix6.configs.CANdleConfiguration
+import com.ctre.phoenix6.controls.SolidColor
+import com.ctre.phoenix6.controls.StrobeAnimation
+import com.ctre.phoenix6.hardware.CANdle
+import com.ctre.phoenix6.signals.RGBWColor
+import com.ctre.phoenix6.signals.StripTypeValue
 import edu.wpi.first.wpilibj.DriverStation
 import edu.wpi.first.wpilibj.DriverStation.Alliance
 import edu.wpi.first.wpilibj.util.Color
@@ -11,6 +13,7 @@ import edu.wpi.first.wpilibj2.command.Commands
 import edu.wpi.first.wpilibj2.command.Commands.idle
 import edu.wpi.first.wpilibj2.command.SubsystemBase
 import frc.team78.commands.command
+import frc.team78.lib.hertz
 
 /** Subsystem for controlling the LEDs on the robot. */
 object LED : SubsystemBase() {
@@ -19,22 +22,19 @@ object LED : SubsystemBase() {
     // The CANdle object for controlling the LEDs.
     private val bracelet =
         CANdle(CANDLE_CAN_ID, "CANivore").apply {
-            configFactoryDefault()
-            val config =
+            configurator.apply(
                 CANdleConfiguration().apply {
-                    brightnessScalar = 0.5
-                    stripType = CANdle.LEDStripType.RGB
+                    LED.BrightnessScalar = 0.5
+                    LED.StripType = StripTypeValue.RGB
                 }
-            configAllSettings(config)
+            )
         }
+
+    val solidColor = SolidColor(0, 8)
 
     /** Set the color of the entire LED strip */
     private fun setColor(color: Color) {
-        bracelet.setLEDs(
-            color.red.toInt() * 255,
-            color.green.toInt() * 255,
-            color.blue.toInt() * 255,
-        )
+        bracelet.setControl(solidColor.withColor(RGBWColor(color)))
     }
 
     init {
@@ -63,71 +63,21 @@ object LED : SubsystemBase() {
      *
      * This sets the leds to green
      */
-    val indicateNoteInCartridge by command { startEnd({ bracelet.setLEDs(0, 255, 0) }, this::off) }
-
-    /** Command to run an animation when the robot is disabled */
-    val indicateDisabled by command {
-        runOnce {
-            bracelet.apply {
-                animate(
-                    ColorFlowAnimation(
-                        0,
-                        0,
-                        255,
-                        0,
-                        0.1,
-                        15,
-                        ColorFlowAnimation.Direction.Forward,
-                        7,
-                    )
-                )
-                animate(
-                    ColorFlowAnimation(
-                        0,
-                        255,
-                        0,
-                        0,
-                        0.1,
-                        15,
-                        ColorFlowAnimation.Direction.Backward,
-                        7,
-                    )
-                )
-                animate(
-                    ColorFlowAnimation(
-                        0,
-                        0,
-                        255,
-                        0,
-                        0.1,
-                        7,
-                        ColorFlowAnimation.Direction.Forward,
-                        0,
-                    )
-                )
-                animate(
-                    ColorFlowAnimation(
-                        0,
-                        255,
-                        0,
-                        0,
-                        0.1,
-                        7,
-                        ColorFlowAnimation.Direction.Backward,
-                        0,
-                    )
-                )
-            }
-        }
-    }
+    val indicateNoteInCartridge by command { startEnd({ setColor(Color.kGreen) }, this::off) }
 
     /** Command to indicate the shooter is up to speed and ready to fire. Strobes the leds green */
     val indicateShooterWheelsAtSpeed by command {
-        startEnd({ bracelet.animate(StrobeAnimation(0, 255, 0, 0, 0.2, 68)) }, this::off)
+        startEnd(
+            {
+                bracelet.setControl(
+                    StrobeAnimation(0, 8).withColor(RGBWColor(Color.kGreen)).withFrameRate(10.hertz)
+                )
+            },
+            this::off,
+        )
     }
 
     private fun off() {
-        bracelet.clearAnimation(0)
-        bracelet.setLEDs(0, 0, 0)
+        setColor(Color.kBlack)
     }
 }

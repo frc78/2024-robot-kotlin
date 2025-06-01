@@ -1,31 +1,24 @@
 package frc.team78.subsystems.elevator
 
-import com.ctre.phoenix6.SignalLogger
-import com.ctre.phoenix6.configs.SoftwareLimitSwitchConfigs
 import com.ctre.phoenix6.configs.TalonFXConfiguration
 import com.ctre.phoenix6.controls.DifferentialFollower
-import com.ctre.phoenix6.controls.DifferentialMotionMagicVoltage
+import com.ctre.phoenix6.controls.MotionMagicVoltage
 import com.ctre.phoenix6.hardware.TalonFX
-import com.ctre.phoenix6.signals.*
-import edu.wpi.first.math.system.plant.DCMotor
-import edu.wpi.first.math.util.Units.inchesToMeters
-import edu.wpi.first.math.util.Units.metersToInches
-import edu.wpi.first.units.Units.*
+import com.ctre.phoenix6.signals.GravityTypeValue
+import com.ctre.phoenix6.signals.InvertedValue
+import com.ctre.phoenix6.signals.ReverseLimitSourceValue
+import com.ctre.phoenix6.signals.ReverseLimitTypeValue
+import com.ctre.phoenix6.signals.StaticFeedforwardSignValue
+import edu.wpi.first.units.measure.Angle
 import edu.wpi.first.units.measure.Distance
-import edu.wpi.first.wpilibj.RobotController
-import edu.wpi.first.wpilibj.simulation.BatterySim
-import edu.wpi.first.wpilibj.simulation.ElevatorSim
-import edu.wpi.first.wpilibj.simulation.RoboRioSim
 import edu.wpi.first.wpilibj.smartdashboard.SmartDashboard
 import edu.wpi.first.wpilibj2.command.Command
-import edu.wpi.first.wpilibj2.command.Commands.*
-import edu.wpi.first.wpilibj2.command.FunctionalCommand
+import edu.wpi.first.wpilibj2.command.Commands.idle
 import edu.wpi.first.wpilibj2.command.SubsystemBase
-import edu.wpi.first.wpilibj2.command.sysid.SysIdRoutine
 import frc.team78.commands.command
 import frc.team78.lib.inches
 import frc.team78.lib.radians
-import frc.team78.lib.volts
+import frc.team78.lib.rotations
 
 /**
  * Elevator subsystem
@@ -42,9 +35,6 @@ object Elevator : SubsystemBase("Elevator") {
     private const val K_V = 0.79005
     private const val K_A = 0.086892
     private const val K_G = 0.088056
-
-    // Command loop runs at 50Hz, 20ms period
-    private const val K_DT = 0.02
 
     // PID gains
     private const val K_P = 4.572
@@ -65,39 +55,28 @@ object Elevator : SubsystemBase("Elevator") {
      * Pitch Diameter is 1.29 inches. This measurement is taken from the official drawing of the
      * part https://www.revrobotics.com/content/docs/REV-21-2016-DR.pdf
      */
-    private val DRUM_RADIUS = Inches.of(1.29).divide(2.0)
+    val Distance.drumRotations: Angle
+        get() = (this.inches / (Math.PI * 1.29)).rotations
 
-    // Converts 1 rotation of the motor to inches of travel of the elevator
-    private val POSITION_CONVERSION_FACTOR = GEAR_RATIO / (DRUM_RADIUS.inches * Math.PI)
+    val Angle.elevatorInches: Distance
+        get() = (this.rotations * (Math.PI * 1.29)).inches
 
     // Initialize the SmartDashboard with the elevator commands, and details about this subsystem
     init {
         SmartDashboard.putData(this)
-
-        // When there is no active command, move the elevator to the bottom
-        defaultCommand = zero
     }
 
-    private val elevatorSim =
-        ElevatorSim(
-            DCMotor.getFalcon500(2),
-            25.0,
-            10.0,
-            inchesToMeters(1.29 / 2),
-            0.0,
-            inchesToMeters(17.0),
-            false,
-            inchesToMeters(5.0),
-        )
-
     private val leader =
-        TalonFX(LEADER_MOTOR_ID, "*").apply {
+        TalonFX(LEADER_MOTOR_ID).apply {
             val leaderMotorConfiguration =
                 TalonFXConfiguration().apply {
                     Feedback.SensorToMechanismRatio = GEAR_RATIO
                     SoftwareLimitSwitch.ForwardSoftLimitEnable = true
                     // Do not allow the motor to move upwards until after zeroing
-                    SoftwareLimitSwitch.ForwardSoftLimitThreshold = 0.0
+                    SoftwareLimitSwitch.withForwardSoftLimitEnable(true)
+                        .withForwardSoftLimitThreshold(17.0.inches.drumRotations)
+                        .withReverseSoftLimitEnable(true)
+                        .withReverseSoftLimitThreshold(0.radians)
                     // Allow the motor to move downwards until the limit switch is pressed
                     SoftwareLimitSwitch.ReverseSoftLimitEnable = false
                     SoftwareLimitSwitch.ReverseSoftLimitThreshold = 0.0
@@ -129,62 +108,24 @@ object Elevator : SubsystemBase("Elevator") {
             closedLoopError.setUpdateFrequency(100.0)
         }
 
-    val follower =
-        TalonFX(FOLLOWER_MOTOR_ID, "*").apply {
-            setControl(DifferentialFollower(LEADER_MOTOR_ID, true))
-        }
+    init {
+        TalonFX(FOLLOWER_MOTOR_ID).apply { setControl(DifferentialFollower(LEADER_MOTOR_ID, true)) }
+    }
 
-    private val motionMagicRequest = DifferentialMotionMagicVoltage(0.0, 0.0)
-
-    /** Whether the elevator has been zeroed */
-    private var zeroed = false
+    private val motionMagicRequest = MotionMagicVoltage(0.0)
 
     /** Position of the elevator in inches */
     val position: Distance
-        get() = DRUM_RADIUS * leader.position.value.radians
+        get() = leader.position.value.elevatorInches
 
     val isAtGoal
         get() = leader.closedLoopError.value < K_TOLERANCE
 
-    /**
-     * Command to run the zeroing routine.
-     *
-     * The routine will slowly move the elevator down until the limit switch is pressed, then set
-     * the soft limits and allow for positional control.
-     */
-    val zero
-        get() =
-            FunctionalCommand(
-                    {
-                        // When the zero routine starts, the elevator is not zeroed
-                        zeroed = false
-                    },
-                    {
-                        // Drive the elevator down slowly
-                        leader.set(-0.1)
-                    },
-                    { interrupted ->
-                        if (interrupted) return@FunctionalCommand
-                        leader.setPosition(0.0)
-                        val softLimitSwitchConfigs =
-                            SoftwareLimitSwitchConfigs().apply {
-                                ReverseSoftLimitEnable = true
-                                ReverseSoftLimitThreshold = 0.0
-                                ForwardSoftLimitEnable = true
-                                ForwardSoftLimitThreshold = CLIMB_HEIGHT.inches
-                            }
-                        leader.configurator.apply(softLimitSwitchConfigs)
-                        zeroed = true
-                        defaultCommand = goToStow
-                    },
-                    { leader.reverseLimit.value == ReverseLimitValue.ClosedToGround },
-                    this,
-                )
-                // Don't allow interrupting this routine. It must complete to zero the elevator
-                .withInterruptBehavior(Command.InterruptionBehavior.kCancelIncoming)
-                .withName("Zero Elevator")
-
     val goToStow by command { goToPosition(STOW_HEIGHT).withName("goToStow") }
+
+    init {
+        defaultCommand = goToStow
+    }
 
     /** Command to move the elevator to the AMP height */
     val goToAmp by command { goToPosition(AMP_HEIGHT).withName("go_to_amp") }
@@ -192,76 +133,11 @@ object Elevator : SubsystemBase("Elevator") {
     /** Command to move the elevator to the CLIMB height */
     val goToClimb by command { goToPosition(CLIMB_HEIGHT).withName("go_to_climb") }
 
-    val climb by command { goToPosition(STOW_HEIGHT, true).withName("climb") }
-
-    private fun goToPosition(position: Distance, brakeOnNeutral: Boolean = false): Command =
-        runOnce {
-                leader.setControl(
-                    motionMagicRequest
-                        .withTargetPosition(Radians.of(position.inches / DRUM_RADIUS.inches))
-                        .withOverrideBrakeDurNeutral(brakeOnNeutral)
-                )
-            }
+    private fun goToPosition(position: Distance): Command =
+        runOnce { leader.setControl(motionMagicRequest.withPosition(position.drumRotations)) }
             .andThen(idle())
-
-    private val sysIdRoutine =
-        SysIdRoutine(
-            SysIdRoutine.Config(null, Volts.of(4.0), null) {
-                SignalLogger.writeString("state", it.toString())
-            },
-            SysIdRoutine.Mechanism(
-                { voltage ->
-                    leader.setVoltage(voltage.volts)
-                    follower.setVoltage(voltage.volts)
-                },
-                null,
-                this,
-                "elevator",
-            ),
-        )
-
-    val runSysId by command {
-        sequence(
-            runOnce(SignalLogger::start),
-            sysIdRoutine.dynamic(SysIdRoutine.Direction.kForward).until {
-                leader.fault_ForwardSoftLimit.value
-            },
-            sysIdRoutine.dynamic(SysIdRoutine.Direction.kReverse).until {
-                leader.reverseLimit.value == ReverseLimitValue.ClosedToGround
-            },
-            sysIdRoutine.quasistatic(SysIdRoutine.Direction.kForward).until {
-                leader.fault_ForwardSoftLimit.value
-            },
-            sysIdRoutine.quasistatic(SysIdRoutine.Direction.kReverse).until {
-                leader.reverseLimit.value == ReverseLimitValue.ClosedToGround
-            },
-            runOnce(SignalLogger::stop),
-        )
-    }
 
     override fun periodic() {
         SmartDashboard.putNumber("Elevator Position", position.inches)
-    }
-
-    override fun simulationPeriodic() {
-        val leaderSim = leader.simState
-        leaderSim.setSupplyVoltage(RobotController.getBatteryVoltage())
-        val motorVoltage = leaderSim.motorVoltage
-
-        elevatorSim.setInput(motorVoltage)
-        elevatorSim.update(K_DT)
-
-        leaderSim.setReverseLimit(elevatorSim.hasHitLowerLimit())
-
-        val elevatorPositionInches = metersToInches(elevatorSim.positionMeters)
-        val elevatorVelocityInchesPerSecond = metersToInches(elevatorSim.velocityMetersPerSecond)
-        val rotations = elevatorPositionInches * POSITION_CONVERSION_FACTOR
-        val rotationsPerSecond = elevatorVelocityInchesPerSecond * POSITION_CONVERSION_FACTOR
-        leaderSim.setRawRotorPosition(rotations)
-        leaderSim.setRotorVelocity(rotationsPerSecond)
-
-        RoboRioSim.setVInVoltage(
-            BatterySim.calculateDefaultBatteryLoadedVoltage(elevatorSim.currentDrawAmps)
-        )
     }
 }

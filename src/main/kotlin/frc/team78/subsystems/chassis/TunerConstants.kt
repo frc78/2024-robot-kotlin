@@ -1,6 +1,11 @@
 package frc.team78.subsystems.chassis
 
-import com.ctre.phoenix6.configs.*
+import com.ctre.phoenix6.configs.CANcoderConfiguration
+import com.ctre.phoenix6.configs.Slot0Configs
+import com.ctre.phoenix6.configs.TalonFXConfiguration
+import com.ctre.phoenix6.hardware.CANcoder
+import com.ctre.phoenix6.hardware.TalonFX
+import com.ctre.phoenix6.swerve.SwerveDrivetrain
 import com.ctre.phoenix6.swerve.SwerveDrivetrainConstants
 import com.ctre.phoenix6.swerve.SwerveModuleConstants.ClosedLoopOutputType
 import com.ctre.phoenix6.swerve.SwerveModuleConstants.SteerFeedbackType
@@ -76,7 +81,6 @@ object TunerConstants {
     private const val INVERT_LEFT_SIDE = false
     private const val INVERT_RIGHT_SIDE = true
 
-    private const val CAN_BUS_NAME = "*"
     private const val PIGEON_ID = 0
 
     // These are only used for simulation
@@ -88,32 +92,36 @@ object TunerConstants {
 
     val DrivetrainConstants =
         SwerveDrivetrainConstants().apply {
-            CANBusName = CAN_BUS_NAME
             Pigeon2Id = PIGEON_ID
             Pigeon2Configs = pigeonConfigs
         }
 
     private val ConstantCreator =
-        SwerveModuleConstantsFactory().apply {
-            DriveMotorGearRatio = DRIVE_GEAR_RATIO
-            SteerMotorGearRatio = STEER_GEAR_RATIO
-            WheelRadius = WHEEL_RADIUS_INCHES
-            SlipCurrent = SLIP_CURRENT_A
-            SteerMotorGains = steerGains
-            DriveMotorGains = driveGains
-            SteerMotorClosedLoopOutput = STEER_CLOSED_LOOP_OUTPUT
-            DriveMotorClosedLoopOutput = DRIVE_CLOSED_LOOP_OUTPUT
-            SpeedAt12Volts = SPEED_AT_12_VOLTS_MPS
-            SteerInertia = STEER_INERTIA
-            DriveInertia = DRIVE_INERTIA
-            SteerFrictionVoltage = STEER_FRICTION_VOLTAGE
-            DriveFrictionVoltage = DRIVE_FRICTION_VOLTAGE
-            FeedbackSource = SteerFeedbackType.FusedCANcoder
-            CouplingGearRatio = COUPLE_RATIO
-            DriveMotorInitialConfigs = driveInitialConfigs
-            SteerMotorInitialConfigs = steerInitialConfigs
-            CANcoderInitialConfigs = cancoderInitialConfigs
-        }
+        SwerveModuleConstantsFactory<
+                TalonFXConfiguration,
+                TalonFXConfiguration,
+                CANcoderConfiguration,
+            >()
+            .apply {
+                DriveMotorGearRatio = DRIVE_GEAR_RATIO
+                SteerMotorGearRatio = STEER_GEAR_RATIO
+                WheelRadius = WHEEL_RADIUS_INCHES
+                SlipCurrent = SLIP_CURRENT_A
+                SteerMotorGains = steerGains
+                DriveMotorGains = driveGains
+                SteerMotorClosedLoopOutput = STEER_CLOSED_LOOP_OUTPUT
+                DriveMotorClosedLoopOutput = DRIVE_CLOSED_LOOP_OUTPUT
+                SpeedAt12Volts = SPEED_AT_12_VOLTS_MPS
+                SteerInertia = STEER_INERTIA
+                DriveInertia = DRIVE_INERTIA
+                SteerFrictionVoltage = STEER_FRICTION_VOLTAGE
+                DriveFrictionVoltage = DRIVE_FRICTION_VOLTAGE
+                FeedbackSource = SteerFeedbackType.FusedCANcoder
+                CouplingGearRatio = COUPLE_RATIO
+                DriveMotorInitialConfigs = driveInitialConfigs
+                SteerMotorInitialConfigs = steerInitialConfigs
+                EncoderInitialConfigs = cancoderInitialConfigs
+            }
 
     // Front Left
     private const val FRONT_LEFT_DRIVE_MOTOR_ID = 1
@@ -165,6 +173,7 @@ object TunerConstants {
             inchesToMeters(FRONT_LEFT_Y_POS_INCHES),
             INVERT_LEFT_SIDE,
             FRONT_LEFT_STEER_INVERT,
+            false,
         )
     val FrontRight =
         ConstantCreator.createModuleConstants(
@@ -176,6 +185,7 @@ object TunerConstants {
             inchesToMeters(FRONT_RIGHT_Y_POS_INCHES),
             INVERT_RIGHT_SIDE,
             FRONT_RIGHT_STEER_INVERT,
+            false,
         )
     val BackLeft =
         ConstantCreator.createModuleConstants(
@@ -187,6 +197,7 @@ object TunerConstants {
             inchesToMeters(BACK_LEFT_Y_POS_INCHES),
             INVERT_LEFT_SIDE,
             BACK_LEFT_STEER_INVERT,
+            false,
         )
     val BackRight =
         ConstantCreator.createModuleConstants(
@@ -198,5 +209,19 @@ object TunerConstants {
             inchesToMeters(BACK_RIGHT_Y_POS_INCHES),
             INVERT_RIGHT_SIDE,
             BACK_RIGHT_STEER_INVERT,
+            false,
+        )
+
+    open class MunchkinSwerveDrivetrain :
+        SwerveDrivetrain<TalonFX, TalonFX, CANcoder>(
+            ::TalonFX,
+            ::TalonFX,
+            ::CANcoder,
+            DrivetrainConstants,
+            250.0,
+            FrontLeft,
+            FrontRight,
+            BackLeft,
+            BackRight,
         )
 }
